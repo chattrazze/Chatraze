@@ -60,9 +60,16 @@ export default function CallOverlay({
   }, [remoteStream, remoteAudioRef, remoteVideoRef]);
 
   useEffect(() => {
-    if (!localStream || !localVideoRef.current) return;
-    if (localVideoRef.current.srcObject !== localStream) {
-      localVideoRef.current.srcObject = localStream;
+    const vid = localVideoRef.current;
+    if (!vid) return;
+    if (localStream) {
+      if (vid.srcObject !== localStream) {
+        vid.srcObject = localStream;
+        vid.muted = true;
+        vid.play().catch(() => {});
+      }
+    } else {
+      vid.srcObject = null;
     }
   }, [localStream, localVideoRef]);
 
@@ -128,21 +135,52 @@ export default function CallOverlay({
         <div className="w-10" />
       </div>
 
+      {/* Local video — always in DOM so localVideoRef.current is available before connected */}
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          position: "absolute",
+          bottom: 80,
+          right: 16,
+          width: 112,
+          height: 144,
+          borderRadius: 16,
+          objectFit: "cover",
+          border: "1px solid rgba(255,255,255,0.2)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          zIndex: 20,
+          display: isVideo && isConnected && !cameraOff ? "block" : "none",
+        }}
+      />
+
+      {/* Camera-off placeholder for local video */}
+      {isVideo && isConnected && cameraOff && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 80,
+            right: 16,
+            width: 112,
+            height: 144,
+            borderRadius: 16,
+            background: "#27272a",
+            border: "1px solid rgba(255,255,255,0.2)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <VideoOff size={32} color="rgba(255,255,255,0.4)" />
+        </div>
+      )}
+
       <div className="relative z-10 flex-1 flex items-center justify-center">
-        {isVideo && isConnected ? (
-          <div
-            className="absolute bottom-4 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-white/20 shadow-2xl"
-            style={{ zIndex: 20 }}
-          >
-            {cameraOff ? (
-              <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
-                <Avatar name={peerName ?? "?"} photoURL={peerPhotoURL ?? null} size={60} />
-              </div>
-            ) : (
-              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-            )}
-          </div>
-        ) : (
+        {!(isVideo && isConnected) && (
           <div className="flex flex-col items-center gap-5">
             <div
               style={{
