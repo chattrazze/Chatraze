@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Chatrazze"
+version = "1.0.0"
+id = "artifacts/chatrazze"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18230
+
+[services.development]
+run = "pnpm --filter @workspace/chatrazze run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/chatrazze", "run", "build" ]
+publicDir = "artifacts/chatrazze/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18230"
+BASE_PATH = "/"

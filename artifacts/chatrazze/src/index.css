@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --font-sans: var(--app-font-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root, .dark {
+  /* Dark by default - WhatsApp-like */
+  --background: 220 18% 9%;
+  --foreground: 210 20% 96%;
+  --border: 220 14% 18%;
+  --input: 220 14% 16%;
+  --ring: 22 100% 50%;
+
+  --card: 220 16% 12%;
+  --card-foreground: 210 20% 96%;
+
+  --popover: 220 16% 12%;
+  --popover-foreground: 210 20% 96%;
+
+  --primary: 25 100% 50%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 142 100% 39%;
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 220 12% 16%;
+  --muted-foreground: 220 8% 65%;
+
+  --accent: 217 100% 58%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --app-font-sans: 'Inter', system-ui, sans-serif;
+  --radius: 0.85rem;
+
+  --bg-gradient:
+    radial-gradient(1200px 800px at 0% 0%, hsl(25 100% 50% / 0.08), transparent 60%),
+    radial-gradient(1000px 700px at 100% 100%, hsl(217 100% 58% / 0.08), transparent 60%),
+    linear-gradient(180deg, hsl(220 20% 7%), hsl(220 18% 10%));
+
+  --glass-bg: linear-gradient(180deg, hsl(220 16% 13% / 0.85), hsl(220 16% 11% / 0.85));
+  --glass-border: hsl(220 14% 20% / 0.7);
+  --bubble-in-bg: hsl(220 14% 17%);
+  --bubble-in-border: hsl(220 14% 22%);
+  --scroll-thumb: hsl(220 10% 25%);
+  --chat-dot-1: hsl(220 16% 18% / 0.45);
+  --chat-dot-2: hsl(220 16% 16% / 0.35);
+}
+
+.light {
+  --background: 210 25% 98%;
+  --foreground: 220 25% 12%;
+  --border: 220 14% 88%;
+  --input: 0 0% 100%;
+  --ring: 22 100% 50%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 25% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 25% 12%;
+
+  --primary: 25 100% 50%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 142 70% 38%;
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 10% 42%;
+
+  --accent: 217 100% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 78% 52%;
+  --destructive-foreground: 0 0% 100%;
+
+  --bg-gradient:
+    radial-gradient(1200px 800px at 0% 0%, hsl(25 100% 50% / 0.10), transparent 60%),
+    radial-gradient(1000px 700px at 100% 100%, hsl(217 100% 58% / 0.10), transparent 60%),
+    linear-gradient(180deg, hsl(210 30% 99%), hsl(210 25% 96%));
+
+  --glass-bg: linear-gradient(180deg, hsl(0 0% 100% / 0.85), hsl(210 25% 98% / 0.85));
+  --glass-border: hsl(220 14% 88% / 0.9);
+  --bubble-in-bg: hsl(0 0% 100%);
+  --bubble-in-border: hsl(220 14% 90%);
+  --scroll-thumb: hsl(220 10% 78%);
+  --chat-dot-1: hsl(220 14% 88% / 0.6);
+  --chat-dot-2: hsl(220 14% 90% / 0.45);
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-gradient);
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .bubble-out {
+    background: linear-gradient(135deg, #FF7A1A, #FF4E00);
+    color: white;
+    box-shadow: 0 4px 14px hsl(25 100% 40% / 0.35);
+  }
+
+  .bubble-in {
+    background: var(--bubble-in-bg);
+    color: hsl(var(--foreground));
+    border: 1px solid var(--bubble-in-border);
+  }
+
+  .chat-pattern {
+    background-image:
+      radial-gradient(var(--chat-dot-1) 1px, transparent 1px),
+      radial-gradient(var(--chat-dot-2) 1px, transparent 1px);
+    background-size: 22px 22px, 22px 22px;
+    background-position: 0 0, 11px 11px;
+  }
+
+  .ring-primary-glow {
+    box-shadow: 0 0 0 4px hsl(25 100% 50% / 0.15);
+  }
+}

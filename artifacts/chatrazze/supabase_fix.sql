@@ -1,0 +1,215 @@
+-- ============================================================
+-- Chatrazze — Supabase Schema + RLS Fix
+-- Run this in: Supabase Dashboard → SQL Editor → New query
+-- ============================================================
+
+-- 0. Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================
+-- 1. CHATS TABLE
+-- id is TEXT so it accepts both proper UUIDs (new chats) and
+-- any legacy IDs that may already exist.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS chats (
+  id              TEXT        PRIMARY KEY,
+  members         TEXT[]      NOT NULL DEFAULT '{}',
+  last_message    TEXT,
+  last_message_type TEXT,
+  last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  last_message_by TEXT,
+  unread          JSONB       DEFAULT '{}',
+  typing          JSONB       DEFAULT '{}',
+  is_group        BOOLEAN     DEFAULT FALSE,
+  group_name      TEXT,
+  group_photo     TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- If the table already exists with id UUID, convert it to TEXT safely:
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'chats' AND column_name = 'id'
+      AND data_type = 'uuid'
+  ) THEN
+    -- Drop FK constraints from messages before altering chats.id
+    ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_chat_id_fkey;
+    -- Change id column type
+    ALTER TABLE chats  ALTER COLUMN id TYPE TEXT USING id::TEXT;
+    ALTER TABLE messages ALTER COLUMN chat_id TYPE TEXT USING chat_id::TEXT;
+  END IF;
+END $$;
+
+-- ============================================================
+-- 2. MESSAGES TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS messages (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id     TEXT        NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  sender_id   TEXT        NOT NULL,
+  type        TEXT        NOT NULL DEFAULT 'text',
+  text        TEXT        DEFAULT '',
+  media_url   TEXT        DEFAULT '',
+  media_name  TEXT        DEFAULT '',
+  media_mime  TEXT        DEFAULT '',
+  media_size  BIGINT      DEFAULT 0,
+  duration    INTEGER     DEFAULT 0,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  read_by     TEXT[]      DEFAULT '{}',
+  reactions   JSONB       DEFAULT '{}'
+);
+
+-- Ensure chat_id column exists with correct type (migration safety)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'messages' AND column_name = 'chat_id'
+  ) THEN
+    ALTER TABLE messages ADD COLUMN chat_id TEXT NOT NULL DEFAULT '';
+  END IF;
+END $$;
+
+-- ============================================================
+-- 3. INDEXES
+-- ============================================================
+CREATE INDEX IF NOT EXISTS chats_members_gin    ON chats    USING GIN(members);
+CREATE INDEX IF NOT EXISTS chats_last_msg_at    ON chats    (last_message_at DESC);
+CREATE INDEX IF NOT EXISTS messages_chat_id_idx ON messages (chat_id);
+CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at ASC);
+CREATE INDEX IF NOT EXISTS messages_sender_idx  ON messages (sender_id);
+
+-- ============================================================
+-- 4. ROW LEVEL SECURITY
+-- ============================================================
+ALTER TABLE chats    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- Drop old policies so we can recreate them cleanly
+DROP POLICY IF EXISTS "Users can read their chats"          ON chats;
+DROP POLICY IF EXISTS "Users can insert chats"              ON chats;
+DROP POLICY IF EXISTS "Users can update their chats"        ON chats;
+DROP POLICY IF EXISTS "Users can delete their chats"        ON chats;
+
+DROP POLICY IF EXISTS "Users can read messages"             ON messages;
+DROP POLICY IF EXISTS "Users can insert messages"           ON messages;
+DROP POLICY IF EXISTS "Users can update messages"           ON messages;
+DROP POLICY IF EXISTS "Users can read messages in their chats" ON messages;
+
+-- ── chats ────────────────────────────────────────────────────
+-- SELECT: user must be in members array
+CREATE POLICY "Users can read their chats" ON chats
+  FOR SELECT
+  USING (auth.uid()::text = ANY(members));
+
+-- INSERT: inserting user must include themselves in members
+CREATE POLICY "Users can insert chats" ON chats
+  FOR INSERT
+  WITH CHECK (auth.uid()::text = ANY(members));
+
+-- UPDATE: user must be a member
+CREATE POLICY "Users can update their chats" ON chats
+  FOR UPDATE
+  USING (auth.uid()::text = ANY(members));
+
+-- ── messages ─────────────────────────────────────────────────
+-- SELECT: user must be a member of the chat
+CREATE POLICY "Users can read messages" ON messages
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM chats
+      WHERE chats.id = messages.chat_id
+        AND auth.uid()::text = ANY(chats.members)
+    )
+  );
+
+-- INSERT: sender_id must match the authenticated user AND they must be a chat member
+CREATE POLICY "Users can insert messages" ON messages
+  FOR INSERT
+  WITH CHECK (
+    auth.uid()::text = sender_id
+    AND EXISTS (
+      SELECT 1 FROM chats
+      WHERE chats.id = messages.chat_id
+        AND auth.uid()::text = ANY(chats.members)
+    )
+  );
+
+-- UPDATE: user must be a member (for read_by, reactions updates)
+CREATE POLICY "Users can update messages" ON messages
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM chats
+      WHERE chats.id = messages.chat_id
+        AND auth.uid()::text = ANY(chats.members)
+    )
+  );
+
+-- ============================================================
+-- 5. USERS TABLE (for presence / profile — if not already set)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS users (
+  uid         TEXT        PRIMARY KEY,
+  email       TEXT,
+  display_name TEXT,
+  photo_url   TEXT,
+  phone       TEXT,
+  online      BOOLEAN     DEFAULT FALSE,
+  last_seen   TIMESTAMPTZ DEFAULT NOW(),
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read all profiles"  ON users;
+DROP POLICY IF EXISTS "Users can insert own profile" ON users;
+DROP POLICY IF EXISTS "Users can update own profile" ON users;
+
+CREATE POLICY "Users can read all profiles" ON users
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert own profile" ON users
+  FOR INSERT WITH CHECK (auth.uid()::text = uid);
+
+CREATE POLICY "Users can update own profile" ON users
+  FOR UPDATE USING (auth.uid()::text = uid);
+
+-- ============================================================
+-- 6. STATUSES TABLE (if not already set)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS statuses (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    TEXT        NOT NULL,
+  user_name  TEXT,
+  user_photo TEXT,
+  type       TEXT        NOT NULL DEFAULT 'text',
+  text       TEXT,
+  media_url  TEXT,
+  bg_color   TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '24 hours')
+);
+
+ALTER TABLE statuses ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated users can read statuses" ON statuses;
+DROP POLICY IF EXISTS "Users can insert own status"           ON statuses;
+DROP POLICY IF EXISTS "Users can delete own status"           ON statuses;
+
+CREATE POLICY "Authenticated users can read statuses" ON statuses
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can insert own status" ON statuses
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete own status" ON statuses
+  FOR DELETE USING (auth.uid()::text = user_id);
+
+-- ============================================================
+-- Done! Run this and then test your app.
+-- ============================================================
