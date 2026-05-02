@@ -1,14 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Mic, MicOff,
   PhoneOff, Phone,
   Video, VideoOff,
   Volume2, VolumeX,
+  EyeOff, Eye,
 } from "lucide-react";
 import type { WebRTCState } from "@/hooks/useWebRTC";
 import { formatCallDuration } from "@/hooks/useWebRTC";
 import Avatar from "@/components/Avatar";
 import { useLang } from "@/hooks/useLang";
+
+const PIP_W = 112;
+const PIP_H = 144;
 
 interface Props {
   state: WebRTCState;
@@ -40,6 +44,35 @@ export default function CallOverlay({
   const { t } = useLang();
   const { phase, peerName, kind, localStream, remoteStream, muted, cameraOff, speakerOn, elapsedSec } = state;
   const prevRemoteStream = useRef<MediaStream | null>(null);
+
+  // PIP position & visibility
+  const [pipPos, setPipPos] = useState({ x: window.innerWidth - PIP_W - 16, y: window.innerHeight - PIP_H - 100 });
+  const [pipHidden, setPipHidden] = useState(false);
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const moved = useRef(false);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragging.current = true;
+    moved.current = false;
+    dragOffset.current = {
+      x: e.clientX - pipPos.x,
+      y: e.clientY - pipPos.y,
+    };
+  }, [pipPos]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    moved.current = true;
+    const nx = Math.max(0, Math.min(window.innerWidth - PIP_W, e.clientX - dragOffset.current.x));
+    const ny = Math.max(0, Math.min(window.innerHeight - PIP_H, e.clientY - dragOffset.current.y));
+    setPipPos({ x: nx, y: ny });
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
 
   useEffect(() => {
     if (!remoteStream || remoteStream === prevRemoteStream.current) return;
@@ -73,21 +106,27 @@ export default function CallOverlay({
     }
   }, [localStream, localVideoRef]);
 
+  // Reset PIP position & visibility when a new call starts
+  useEffect(() => {
+    if (phase !== "idle") {
+      setPipPos({ x: window.innerWidth - PIP_W - 16, y: window.innerHeight - PIP_H - 100 });
+      setPipHidden(false);
+    }
+  }, [phase]);
+
   if (phase === "idle") return null;
 
   const isVideo = kind === "video";
   const isConnected = phase === "connected";
   const isIncoming = phase === "incoming";
+  const showPip = isVideo && isConnected;
 
   const statusLabel =
-    phase === "calling"     ? t("callingLabel")
-    : phase === "incoming"  ? (isVideo ? t("incomingVideoCall") : t("incomingVoiceCall"))
+    phase === "calling"      ? t("callingLabel")
+    : phase === "incoming"   ? (isVideo ? t("incomingVideoCall") : t("incomingVoiceCall"))
     : phase === "connecting" ? t("connectingLabel")
     : phase === "connected"  ? formatCallDuration(elapsedSec)
     : "";
-
-  const initials = (peerName ?? "?").charAt(0).toUpperCase();
-  void initials;
 
   return (
     <div className="fixed inset-0 z-[999] flex flex-col overflow-hidden select-none" style={{ background: "#111" }}>
@@ -121,6 +160,103 @@ export default function CallOverlay({
         }}
       />
 
+      {/* ── Local video (always in DOM for ref) ── */}
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+      />
+
+      {/* ── Draggable PIP ── */}
+      {showPip && !pipHidden && (
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          style={{
+            position: "absolute",
+            left: pipPos.x,
+            top: pipPos.y,
+            width: PIP_W,
+            height: PIP_H,
+            zIndex: 30,
+            cursor: "grab",
+            touchAction: "none",
+          }}
+        >
+          <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            {cameraOff ? (
+              <div style={{ width: "100%", height: "100%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <VideoOff size={32} color="rgba(255,255,255,0.4)" />
+              </div>
+            ) : (
+              <video
+                autoPlay
+                playsInline
+                muted
+                ref={(el) => {
+                  if (el && localStream && el.srcObject !== localStream) {
+                    el.srcObject = localStream;
+                    el.play().catch(() => {});
+                  }
+                }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            )}
+            {/* Hide button */}
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setPipHidden(true); }}
+              style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                width: 26,
+                height: 26,
+                borderRadius: "50%",
+                background: "rgba(0,0,0,0.55)",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "white",
+              }}
+            >
+              <EyeOff size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Show-PIP button when hidden ── */}
+      {showPip && pipHidden && (
+        <button
+          onClick={() => setPipHidden(false)}
+          style={{
+            position: "absolute",
+            left: pipPos.x,
+            top: pipPos.y,
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            background: "rgba(40,40,40,0.88)",
+            border: "1.5px solid rgba(255,255,255,0.2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "white",
+            zIndex: 30,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+          }}
+        >
+          <Eye size={20} />
+        </button>
+      )}
+
       <div className="relative z-10 flex items-start justify-between px-5 pt-14 pb-4">
         <div className="flex flex-col items-center gap-3" />
         <div className="text-center flex-1">
@@ -134,50 +270,6 @@ export default function CallOverlay({
         </div>
         <div className="w-10" />
       </div>
-
-      {/* Local video — always in DOM so localVideoRef.current is available before connected */}
-      <video
-        ref={localVideoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{
-          position: "absolute",
-          bottom: 80,
-          right: 16,
-          width: 112,
-          height: 144,
-          borderRadius: 16,
-          objectFit: "cover",
-          border: "1px solid rgba(255,255,255,0.2)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          zIndex: 20,
-          display: isVideo && isConnected && !cameraOff ? "block" : "none",
-        }}
-      />
-
-      {/* Camera-off placeholder for local video */}
-      {isVideo && isConnected && cameraOff && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 80,
-            right: 16,
-            width: 112,
-            height: 144,
-            borderRadius: 16,
-            background: "#27272a",
-            border: "1px solid rgba(255,255,255,0.2)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            zIndex: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <VideoOff size={32} color="rgba(255,255,255,0.4)" />
-        </div>
-      )}
 
       <div className="relative z-10 flex-1 flex items-center justify-center">
         {!(isVideo && isConnected) && (
@@ -204,11 +296,7 @@ export default function CallOverlay({
                   border: "3px solid rgba(0,0,0,0.3)",
                 }}
               >
-                <Avatar
-                  name={peerName ?? "?"}
-                  photoURL={peerPhotoURL ?? null}
-                  size={164}
-                />
+                <Avatar name={peerName ?? "?"} photoURL={peerPhotoURL ?? null} size={164} />
               </div>
             </div>
           </div>
@@ -222,20 +310,8 @@ export default function CallOverlay({
         >
           {isIncoming ? (
             <>
-              <RoundBtn
-                onClick={onDecline}
-                icon={<PhoneOff size={28} />}
-                label={t("declineBtn")}
-                bg="#ef4444"
-                size={64}
-              />
-              <RoundBtn
-                onClick={onAccept}
-                icon={<Phone size={28} />}
-                label={t("acceptBtn")}
-                bg="#22c55e"
-                size={64}
-              />
+              <RoundBtn onClick={onDecline} icon={<PhoneOff size={28} />} label={t("declineBtn")} bg="#ef4444" size={64} />
+              <RoundBtn onClick={onAccept}  icon={<Phone size={28} />}    label={t("acceptBtn")}  bg="#22c55e" size={64} />
             </>
           ) : (
             <>
@@ -262,13 +338,7 @@ export default function CallOverlay({
                 bg={muted ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.12)"}
                 size={56}
               />
-              <RoundBtn
-                onClick={onHangup}
-                icon={<PhoneOff size={26} />}
-                label={t("endBtn")}
-                bg="#ef4444"
-                size={64}
-              />
+              <RoundBtn onClick={onHangup} icon={<PhoneOff size={26} />} label={t("endBtn")} bg="#ef4444" size={64} />
             </>
           )}
         </div>
@@ -317,9 +387,9 @@ function RoundBtn({
           transition: "transform 0.1s, opacity 0.1s",
         }}
         onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.93)")}
-        onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        onMouseUp={(e)   => (e.currentTarget.style.transform = "scale(1)")}
         onTouchStart={(e) => (e.currentTarget.style.transform = "scale(0.93)")}
-        onTouchEnd={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        onTouchEnd={(e)   => (e.currentTarget.style.transform = "scale(1)")}
       >
         {icon}
       </button>
