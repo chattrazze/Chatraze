@@ -334,3 +334,48 @@ export async function toggleReaction(
   else reactions[uid] = emoji;
   await supabase.from("messages").update({ reactions }).eq("id", messageId);
 }
+
+export function getBlockedUsers(uid: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(`chatrazze:blocked:${uid}`);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function toggleBlock(uid: string, peerId: string): boolean {
+  const blocked = getBlockedUsers(uid);
+  if (blocked.has(peerId)) blocked.delete(peerId);
+  else blocked.add(peerId);
+  localStorage.setItem(`chatrazze:blocked:${uid}`, JSON.stringify([...blocked]));
+  return blocked.has(peerId);
+}
+
+export async function getChatStats(chatId: string) {
+  const { data } = await supabase
+    .from("messages")
+    .select("type")
+    .eq("chat_id", chatId);
+  const stats = { messageCount: 0, imageCount: 0, videoCount: 0, fileCount: 0, audioCount: 0 };
+  for (const msg of data ?? []) {
+    stats.messageCount += 1;
+    const type = (msg.type as MessageType) ?? "text";
+    if (type === "image") stats.imageCount += 1;
+    if (type === "video") stats.videoCount += 1;
+    if (type === "file") stats.fileCount += 1;
+    if (type === "audio") stats.audioCount += 1;
+  }
+  return stats;
+}
+
+export async function getSharedMedia(chatId: string): Promise<MessageDoc[]> {
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: false });
+  return (data ?? [])
+    .map((r) => rowToMessage(r as Record<string, unknown>, chatId))
+    .filter((m) => ["image", "video", "file", "audio"].includes(m.type));
+}

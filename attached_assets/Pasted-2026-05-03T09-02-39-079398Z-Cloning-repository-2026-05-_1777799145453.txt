@@ -1,0 +1,69 @@
+2026-05-03T09:02:39.079398Z	Cloning repository...
+2026-05-03T09:02:40.321039Z	From https://github.com/chattrazze/Chatraze
+2026-05-03T09:02:40.321606Z	 * branch            1665e1ea99903097c645c4600a53162955d0f8c2 -> FETCH_HEAD
+2026-05-03T09:02:40.321679Z	
+2026-05-03T09:02:40.423394Z	HEAD is now at 1665e1e Post-merge setup completed successfully
+2026-05-03T09:02:40.423807Z	
+2026-05-03T09:02:40.460247Z	
+2026-05-03T09:02:40.460663Z	Using v2 root directory strategy
+2026-05-03T09:02:40.472652Z	Success: Finished cloning repository files
+2026-05-03T09:02:41.836172Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-03T09:02:41.836741Z	
+2026-05-03T09:02:42.939172Z	No Wrangler configuration file found. Continuing.
+2026-05-03T09:02:43.083284Z	Detected the following tools from environment: pnpm@10.11.1, nodejs@22.16.0
+2026-05-03T09:02:43.953249Z	Installing project dependencies: pnpm install
+2026-05-03T09:02:44.482476Z	Scope: all 9 workspace projects
+2026-05-03T09:02:44.560533Z	Lockfile is up to date, resolution step is skipped
+2026-05-03T09:02:44.586531Z	Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-05-03T09:02:44.630261Z	Packages: +496
+2026-05-03T09:02:44.630783Z	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-05-03T09:02:45.586735Z	Progress: resolved 496, reused 0, downloaded 229, added 178
+2026-05-03T09:02:46.587621Z	Progress: resolved 496, reused 0, downloaded 318, added 257
+2026-05-03T09:02:47.589085Z	Progress: resolved 496, reused 0, downloaded 428, added 315
+2026-05-03T09:02:48.287136Z	Progress: resolved 496, reused 0, downloaded 496, added 496, done
+2026-05-03T09:02:48.458235Z	.../esbuild@0.27.3/node_modules/esbuild postinstall$ node install.js
+2026-05-03T09:02:48.553346Z	.../esbuild@0.27.3/node_modules/esbuild postinstall: Done
+2026-05-03T09:02:49.093516Z	
+2026-05-03T09:02:49.093765Z	devDependencies:
+2026-05-03T09:02:49.093832Z	+ prettier 3.8.1
+2026-05-03T09:02:49.093873Z	+ typescript 5.9.3
+2026-05-03T09:02:49.093912Z	
+2026-05-03T09:02:49.127617Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-03T09:02:49.167352Z	. preinstall: Done
+2026-05-03T09:02:49.330684Z	Done in 5.2s using pnpm v10.11.1
+2026-05-03T09:02:49.384972Z	Executing user command: pnpm --filter @workspace/chatrazze run build
+2026-05-03T09:02:49.904767Z	
+2026-05-03T09:02:49.905143Z	> @workspace/chatrazze@0.0.0 build /opt/buildhome/repo/artifacts/chatrazze
+2026-05-03T09:02:49.905206Z	> vite build --config vite.config.ts
+2026-05-03T09:02:49.90524Z	
+2026-05-03T09:02:50.413277Z	[36mvite v7.3.2 [32mbuilding client environment for production...[36m[39m
+2026-05-03T09:02:50.498169Z	transforming...
+2026-05-03T09:02:52.422976Z	[32m✓[39m 1741 modules transformed.
+2026-05-03T09:02:52.426528Z	[31m✗[39m Build failed in 1.97s
+2026-05-03T09:02:52.426692Z	[31merror during build:
+2026-05-03T09:02:52.426756Z	[31msrc/components/UserProfilePage.tsx (4:39): "getBlockedUsers" is not exported by "src/lib/chatService.ts", imported by "src/components/UserProfilePage.tsx".[31m
+2026-05-03T09:02:52.426816Z	file: [36m/opt/buildhome/repo/artifacts/chatrazze/src/components/UserProfilePage.tsx:4:39[31m
+2026-05-03T09:02:52.426866Z	[33m
+2026-05-03T09:02:52.426933Z	2: import { useAuth } from "@/hooks/useAuth";
+2026-05-03T09:02:52.426994Z	3: import { AppUser } from "@/lib/userService";
+2026-05-03T09:02:52.427049Z	4: import { getChatStats, getSharedMedia, getBlockedUsers, toggleBlock, MessageDoc } from "@/lib/chatService";
+2026-05-03T09:02:52.427091Z	                                          ^
+2026-05-03T09:02:52.427123Z	5: import Avatar from "@/components/Avatar";
+2026-05-03T09:02:52.427155Z	6: import { useLang } from "@/hooks/useLang";
+2026-05-03T09:02:52.427182Z	[31m
+2026-05-03T09:02:52.427265Z	    at getRollupError (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+2026-05-03T09:02:52.427319Z	    at error (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+2026-05-03T09:02:52.427364Z	    at Module.error (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:17040:16)
+2026-05-03T09:02:52.427414Z	    at Module.traceVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:17452:29)
+2026-05-03T09:02:52.427445Z	    at ModuleScope.findVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:15070:39)
+2026-05-03T09:02:52.427481Z	    at FunctionScope.findVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+2026-05-03T09:02:52.42752Z	    at FunctionBodyScope.findVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+2026-05-03T09:02:52.427553Z	    at ReturnValueScope.findVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+2026-05-03T09:02:52.427586Z	    at FunctionBodyScope.findVariable (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+2026-05-03T09:02:52.427626Z	    at Identifier.bind (file:///opt/buildhome/repo/node_modules/.pnpm/rollup@4.59.0/node_modules/rollup/dist/es/shared/node-entry.js:5447:40)[39m
+2026-05-03T09:02:52.499871Z	/opt/buildhome/repo/artifacts/chatrazze:
+2026-05-03T09:02:52.5002Z	 ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/chatrazze@0.0.0 build: `vite build --config vite.config.ts`
+2026-05-03T09:02:52.500258Z	Exit status 1
+2026-05-03T09:02:52.52965Z	Failed: Error while executing user command. Exited with error code: 1
+2026-05-03T09:02:52.539565Z	Failed: build command exited with code: 1
+2026-05-03T09:02:53.159675Z	Failed: error occurred while running build command
