@@ -94,6 +94,32 @@ export async function createChat(userA: string, userB: string): Promise<string> 
   return id;
 }
 
+export async function createGroupChat(
+  adminId: string,
+  name: string,
+  memberIds: string[],
+): Promise<string> {
+  const allMembers = Array.from(new Set([adminId, ...memberIds]));
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const unread: Record<string, number> = {};
+  for (const m of allMembers) unread[m] = 0;
+
+  const { error } = await supabase.from("chats").insert({
+    id,
+    members: allMembers,
+    name,
+    type: "group",
+    unread,
+    typing: {},
+    created_at: now,
+    last_message_at: now,
+  });
+
+  if (error) throw error;
+  return id;
+}
+
 export function listenToUserChats(uid: string, cb: (chats: ChatDoc[]) => void) {
   const fetch = async () => {
     const { data, error } = await supabase
