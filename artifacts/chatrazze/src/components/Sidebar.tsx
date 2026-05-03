@@ -74,6 +74,18 @@ export default function Sidebar({
     });
   }, [chats, peers, user]);
 
+  // Immediately zero out unread for selected chat — fixes badge not clearing bug
+  useEffect(() => {
+    if (!selectedChatId || !user) return;
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === selectedChatId
+          ? { ...c, unread: { ...(c.unread ?? {}), [user.uid]: 0 } }
+          : c,
+      ),
+    );
+  }, [selectedChatId, user]);
+
   useEffect(() => {
     if (!user || !onUnreadChange) return;
     const total = chats.reduce(

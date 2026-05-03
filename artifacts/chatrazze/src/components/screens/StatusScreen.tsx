@@ -8,6 +8,7 @@ import {
   Heart,
   MoreVertical,
   Send,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -15,13 +16,19 @@ import { useLang } from "@/hooks/useLang";
 import { supabase } from "@/lib/supabase";
 import {
   type UserStatus,
+  type StatusView,
   deleteStatus,
   loadActiveStatuses,
   loadMyViews,
+  loadStatusViews,
+  addStatusInteraction,
   subscribeToStatusChanges,
   upsertStatus,
   viewStatus,
 } from "@/lib/statusService";
+import { createChat, sendMessage } from "@/lib/chatService";
+import { getUser } from "@/lib/userService";
+import type { AppUser } from "@/lib/userService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,32 +102,35 @@ async function uploadStatusImage(file: File, uid: string): Promise<string> {
 
 // ── WhatsApp-style Status Viewer ─────────────────────────────────────────────
 
-function StatusViewer({
-  statuses,
-  startIndex,
-  myUid,
-  onClose,
-}: {
+interface ViewerProps {
   statuses: UserStatus[];
   startIndex: number;
   myUid: string;
+  myName: string;
   onClose: () => void;
-}) {
+  onOpenChat: (chatId: string, peer: AppUser) => void;
+}
+
+function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat }: ViewerProps) {
   const [idx, setIdx] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const [liked, setLiked] = useState(false);
   const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showSeenBy, setShowSeenBy] = useState(false);
+  const [seenByList, setSeenByList] = useState<(StatusView & { profile?: AppUser })[]>([]);
+  const [seenLoading, setSeenLoading] = useState(false);
   const progressRef = useRef<number | null>(null);
   const startRef = useRef<number>(Date.now());
-  const pausedAtRef = useRef<number>(0);
 
   const current = statuses[idx];
   const isOwn = current?.user_id === myUid;
 
   const goNext = useCallback(() => {
     setLiked(false);
+    setReply("");
     if (idx < statuses.length - 1) {
       setIdx((i) => i + 1);
       setProgress(0);
@@ -132,6 +142,7 @@ function StatusViewer({
 
   const goPrev = useCallback(() => {
     setLiked(false);
+    setReply("");
     if (idx > 0) {
       setIdx((i) => i - 1);
       setProgress(0);
@@ -139,22 +150,37 @@ function StatusViewer({
     }
   }, [idx]);
 
+  // Load seen-by when switching to own status
+  useEffect(() => {
+    if (!isOwn || !current) return;
+    setSeenLoading(true);
+    loadStatusViews(current.id).then(async (views) => {
+      const withProfiles = await Promise.all(
+        views
+          .filter((v) => v.viewer_id !== myUid)
+          .map(async (v) => {
+            const profile = await getUser(v.viewer_id).catch(() => undefined);
+            return { ...v, profile: profile ?? undefined };
+          }),
+      );
+      setSeenByList(withProfiles);
+      setSeenLoading(false);
+    });
+  }, [isOwn, current?.id, myUid]);
+
   // Animate progress bar
   useEffect(() => {
     setProgress(0);
     setLiked(false);
+    setReply("");
     startRef.current = Date.now();
-    pausedAtRef.current = 0;
 
     const tick = () => {
       if (!paused) {
         const elapsed = Date.now() - startRef.current;
         const p = Math.min(elapsed / STORY_DURATION_MS, 1);
         setProgress(p);
-        if (p >= 1) {
-          goNext();
-          return;
-        }
+        if (p >= 1) { goNext(); return; }
       }
       progressRef.current = requestAnimationFrame(tick);
     };
@@ -162,17 +188,62 @@ function StatusViewer({
     return () => { if (progressRef.current) cancelAnimationFrame(progressRef.current); };
   }, [idx, paused, goNext]);
 
-  // Pause on reply focus
-  function handleReplyFocus() { setPaused(true); }
-  function handleReplyBlur() {
-    if (!reply.trim()) {
+  // Send like as actual message + save interaction
+  async function handleLike() {
+    if (!current || isOwn || liked) return;
+    const newLiked = !liked;
+    setLiked(newLiked);
+    if (!newLiked) return;
+    try {
+      const chatId = await createChat(myUid, current.user_id);
+      await sendMessage(chatId, myUid, { type: "text", text: "❤️" });
+      await addStatusInteraction({
+        statusId: current.id,
+        senderId: myUid,
+        recipientId: current.user_id,
+        chatId,
+        kind: "reaction",
+        content: "❤️",
+      });
+    } catch (err) {
+      console.error("Failed to send like:", err);
+    }
+  }
+
+  // Send reply as actual message + save interaction
+  async function handleSendReply() {
+    if (!current || isOwn || !reply.trim() || sending) return;
+    const text = reply.trim();
+    setSending(true);
+    try {
+      const chatId = await createChat(myUid, current.user_id);
+      await sendMessage(chatId, myUid, { type: "text", text });
+      await addStatusInteraction({
+        statusId: current.id,
+        senderId: myUid,
+        recipientId: current.user_id,
+        chatId,
+        kind: "reply",
+        content: text,
+      });
+      setReply("");
       setPaused(false);
       startRef.current = Date.now() - progress * STORY_DURATION_MS;
+      // Navigate to chat
+      const peerProfile = await getUser(current.user_id).catch(() => null);
+      if (peerProfile) {
+        onClose();
+        onOpenChat(chatId, peerProfile);
+      }
+    } catch (err) {
+      console.error("Failed to send reply:", err);
+    } finally {
+      setSending(false);
     }
   }
 
   function handleTap(e: React.MouseEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest("button, input, textarea")) return;
+    if ((e.target as HTMLElement).closest("button, input, textarea, .no-tap")) return;
     const x = e.clientX;
     const w = window.innerWidth;
     if (x < w * 0.35) goPrev();
@@ -185,16 +256,10 @@ function StatusViewer({
     <div
       className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
       onClick={handleTap}
-      onMouseDown={() => setPaused(true)}
-      onMouseUp={() => {
-        setPaused(false);
-        startRef.current = Date.now() - progress * STORY_DURATION_MS;
-      }}
-      onTouchStart={() => setPaused(true)}
-      onTouchEnd={() => {
-        setPaused(false);
-        startRef.current = Date.now() - progress * STORY_DURATION_MS;
-      }}
+      onMouseDown={() => { setPaused(true); }}
+      onMouseUp={() => { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
+      onTouchStart={() => { setPaused(true); }}
+      onTouchEnd={() => { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
     >
       {/* Progress bars */}
       <div className="absolute top-0 left-0 right-0 flex gap-1 px-3 pt-2 z-20">
@@ -202,9 +267,7 @@ function StatusViewer({
           <div key={i} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
             <div
               className="h-full rounded-full bg-white transition-none"
-              style={{
-                width: i < idx ? "100%" : i === idx ? `${progress * 100}%` : "0%",
-              }}
+              style={{ width: i < idx ? "100%" : i === idx ? `${progress * 100}%` : "0%" }}
             />
           </div>
         ))}
@@ -229,7 +292,7 @@ function StatusViewer({
         <div className="flex items-center gap-1">
           {isOwn && (
             <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
+              onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); setShowSeenBy(false); }}
               className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10"
             >
               <MoreVertical className="w-5 h-5 text-white" />
@@ -247,11 +310,11 @@ function StatusViewer({
       {/* Owner menu */}
       {showMenu && (
         <div
-          className="absolute top-16 right-4 z-30 glass rounded-xl overflow-hidden shadow-xl border border-border"
+          className="absolute top-16 right-4 z-30 glass rounded-xl overflow-hidden shadow-xl border border-border no-tap"
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => { onClose(); }}
+            onClick={() => { setShowMenu(false); onClose(); }}
             className="w-full px-5 py-3 text-sm text-destructive hover:bg-white/5 text-left"
           >
             حذف الستاتي
@@ -262,12 +325,7 @@ function StatusViewer({
       {/* Content */}
       <div className="flex-1 flex items-center justify-center">
         {current.media_url ? (
-          <img
-            src={current.media_url}
-            className="w-full h-full object-cover"
-            alt="status"
-            draggable={false}
-          />
+          <img src={current.media_url} className="w-full h-full object-cover" alt="status" draggable={false} />
         ) : (
           <div
             className="w-full h-full flex items-center justify-center px-10"
@@ -280,7 +338,7 @@ function StatusViewer({
         )}
       </div>
 
-      {/* Caption overlay on image */}
+      {/* Caption on image */}
       {current.media_url && current.content && (
         <div className="absolute bottom-24 left-0 right-0 px-6 pointer-events-none">
           <p className="text-white text-base font-medium text-center drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
@@ -291,44 +349,85 @@ function StatusViewer({
 
       {/* Bottom bar */}
       <div
-        className="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-4 pb-8 pt-3"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
+        className="absolute bottom-0 left-0 right-0 flex flex-col no-tap"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {!isOwn ? (
-          <>
+          // ── Viewer: reply + like ──
+          <div className="flex items-center gap-3 px-4 pb-8 pt-3">
             <input
               type="text"
               value={reply}
               onChange={(e) => setReply(e.target.value)}
-              onFocus={handleReplyFocus}
-              onBlur={handleReplyBlur}
-              placeholder="رد…"
+              onFocus={() => setPaused(true)}
+              onBlur={() => { if (!reply.trim()) { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; } }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSendReply(); }}
+              placeholder={`رد على ${current.user_name}…`}
               className="flex-1 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2.5 text-white text-sm placeholder:text-white/50 outline-none focus:border-white/40"
             />
             {reply.trim() ? (
               <button
-                onClick={() => { setReply(""); setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
-                className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-90 transition"
+                onClick={handleSendReply}
+                disabled={sending}
+                className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-60"
               >
-                <Send className="w-5 h-5 text-white" />
+                {sending
+                  ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <Send className="w-5 h-5 text-white" />}
               </button>
             ) : (
               <button
-                onClick={() => setLiked((v) => !v)}
+                onClick={handleLike}
                 className="w-11 h-11 flex items-center justify-center shrink-0 active:scale-90 transition"
               >
                 <Heart
-                  className="w-7 h-7 transition-all"
+                  className="w-7 h-7 transition-all duration-200"
                   fill={liked ? "#FF4E00" : "none"}
                   stroke={liked ? "#FF4E00" : "white"}
                   strokeWidth={liked ? 0 : 2}
                 />
               </button>
             )}
-          </>
+          </div>
         ) : (
-          <p className="text-white/50 text-xs text-center w-full pb-1">استاتيك</p>
+          // ── Owner: seen-by list ──
+          <div className="px-4 pb-8 pt-3">
+            <button
+              onClick={() => { setShowSeenBy((v) => !v); setPaused((v) => !v); }}
+              className="flex items-center gap-2 text-white/80 text-sm"
+            >
+              <Eye className="w-4 h-4" />
+              <span>
+                {seenLoading ? "…" : seenByList.length === 0
+                  ? "لا أحد شاهد بعد"
+                  : `${seenByList.length} ${seenByList.length === 1 ? "شخص" : "أشخاص"} شاهدوا`}
+              </span>
+            </button>
+
+            {showSeenBy && seenByList.length > 0 && (
+              <div className="mt-3 space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                {seenByList.map((v) => (
+                  <div key={v.viewer_id} className="flex items-center gap-3">
+                    {v.profile?.photoURL ? (
+                      <img src={v.profile.photoURL} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center text-white font-semibold shrink-0 text-sm">
+                        {(v.profile?.displayName || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">
+                        {v.profile?.displayName || v.viewer_id.slice(0, 8)}
+                      </p>
+                      <p className="text-white/50 text-[11px]">{formatViewerTime(v.viewed_at)}</p>
+                    </div>
+                    <Heart className="w-4 h-4 text-white/30 shrink-0" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -338,9 +437,9 @@ function StatusViewer({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function StatusScreen({
-  onGoToChats: _onGoToChats,
+  onGoToChats,
 }: {
-  onGoToChats: () => void;
+  onGoToChats: (chatId?: string, peer?: AppUser) => void;
 }) {
   const { user } = useAuth();
   const { show } = useToast();
@@ -350,7 +449,6 @@ export default function StatusScreen({
   const [viewedIds, setViewedIds]     = useState<Set<string>>(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
 
-  // Viewer: list of statuses + starting index
   const [viewerStatuses, setViewerStatuses] = useState<UserStatus[] | null>(null);
   const [viewerStart, setViewerStart]       = useState(0);
 
@@ -452,8 +550,6 @@ export default function StatusScreen({
     }
   }
 
-  const allStatuses = [...(myStatus ? [myStatus] : []), ...others];
-
   return (
     <div className="flex-1 flex flex-col h-full">
       <header className="px-5 pt-6 pb-4 glass border-b border-border">
@@ -500,7 +596,7 @@ export default function StatusScreen({
           </div>
         )}
 
-        {/* Others' statuses */}
+        {/* Others */}
         <p className="text-xs uppercase tracking-wide text-muted-foreground px-2 pt-4">{t("recentUpdates")}</p>
 
         {others.length === 0 ? (
@@ -593,7 +689,6 @@ export default function StatusScreen({
                       onClick={() => setBgColor(color)}
                       className={`w-7 h-7 rounded-full transition ${bgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                       style={{ background: color }}
-                      aria-label={`color ${color}`}
                     />
                   ))}
                 </div>
@@ -624,15 +719,17 @@ export default function StatusScreen({
         </div>
       )}
 
-      {/* WhatsApp-style Viewer */}
+      {/* Viewer */}
       {viewerStatuses && (
         <StatusViewer
           statuses={viewerStatuses}
           startIndex={viewerStart}
           myUid={user?.uid ?? ""}
-          onClose={() => {
+          myName={user?.displayName || user?.email || "Me"}
+          onClose={() => { setViewerStatuses(null); refresh(); }}
+          onOpenChat={(chatId, peer) => {
             setViewerStatuses(null);
-            refresh();
+            onGoToChats(chatId, peer);
           }}
         />
       )}

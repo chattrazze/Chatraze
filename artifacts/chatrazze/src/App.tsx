@@ -249,7 +249,7 @@ function Shell() {
             </div>
           </>
         )}
-        {tab === "status"      && <StatusScreen onGoToChats={() => setTab("chats")} />}
+        {tab === "status"      && <StatusScreen onGoToChats={(cid, p) => { setTab("chats"); if (cid && p) { setChatId(cid); setPeer(p); } }} />}
         {tab === "calls"       && <CallsScreen  onGoToChats={() => setTab("chats")} />}
         {tab === "communities" && (
           <CommunitiesScreen
