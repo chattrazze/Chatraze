@@ -45,6 +45,7 @@ export default function ProfileScreen() {
         if (!u) return;
         if (u.displayName) setName(u.displayName);
         if (u.photoURL) setPhotoURL(u.photoURL);
+        if (u.bio) setStatus(u.bio);
       })
       .catch(() => {});
   }, [user]);
@@ -77,7 +78,7 @@ export default function ProfileScreen() {
     if (!user) return;
     setSaving(true);
     try {
-      await updateUserProfile(user.uid, { displayName: name });
+      await updateUserProfile(user.uid, { displayName: name, bio: status });
       setEditing(false);
       show(t("profileSaved"));
     } catch {
@@ -113,8 +114,8 @@ export default function ProfileScreen() {
               />
             ) : (
               <div className="w-28 h-28 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00] flex items-center justify-center text-4xl font-bold text-white shadow-2xl ring-primary-glow">
-                {(name || user.email || "U").charAt(0).toUpperCase()}
-              </div>
+                {(name || user.email || "U").charAt(0).toUpperCase()
+              }</div>
             )}
             <button
               onClick={() => fileRef.current?.click()}
@@ -144,11 +145,11 @@ export default function ProfileScreen() {
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-input border border-border rounded-xl px-3 py-2 text-sm text-center outline-none focus:ring-2 focus:ring-primary/50"
               />
-              <input
+              <textarea
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 placeholder={t("defaultBio")}
-                className="w-full bg-input border border-border rounded-xl px-3 py-2 text-xs text-center outline-none focus:ring-2 focus:ring-primary/50 text-muted-foreground"
+                className="w-full bg-input border border-border rounded-xl px-3 py-2 text-xs text-center outline-none focus:ring-2 focus:ring-primary/50 text-muted-foreground min-h-20 resize-none"
               />
               <button
                 onClick={save}
@@ -162,9 +163,7 @@ export default function ProfileScreen() {
             <>
               <h2 className="mt-4 text-xl font-bold">{name || t("loadingDots")}</h2>
               <p className="text-xs text-muted-foreground">{user.email}</p>
-              <p className="mt-3 text-sm text-foreground/80 italic">
-                "{status}"
-              </p>
+              <p className="mt-3 text-sm text-foreground/80 italic whitespace-pre-wrap">{status}</p>
             </>
           )}
         </div>
@@ -205,46 +204,12 @@ export default function ProfileScreen() {
         </button>
 
         <div className="glass rounded-2xl overflow-hidden">
-          <SettingRow
-            icon={<UserCircle2 className="w-5 h-5 text-accent" />}
-            label={t("accountSetting")}
-            sub={user.email || user.uid}
-            onClick={() => setEditing(true)}
-          />
-          <SettingRow
-            icon={<Shield className="w-5 h-5 text-secondary" />}
-            label={t("privacySetting")}
-            sub={t("privacySettingSub")}
-            onClick={() => setPanel("privacy")}
-          />
-          <SettingRow
-            icon={<MessageCircle className="w-5 h-5 text-primary" />}
-            label={t("chatsSetting")}
-            sub={t("chatsSettingSub")}
-            onClick={() => setPanel("chats")}
-          />
-          <SettingRow
-            icon={<Bell className="w-5 h-5 text-accent" />}
-            label={t("notificationsSetting")}
-            sub={t("notificationsSettingSub")}
-            onClick={() => setPanel("notifications")}
-          />
-          <SettingRow
-            icon={<Database className="w-5 h-5 text-secondary" />}
-            label={t("storageDataSetting")}
-            sub={t("storageDataSub")}
-            onClick={() => setPanel("storage")}
-          />
-          <SettingRow
-            icon={<KeyRound className="w-5 h-5 text-muted-foreground" />}
-            label={`User ID: ${user.uid.slice(0, 10)}…`}
-            sub={t("tapToCopyId")}
-            onClick={() => {
-              navigator.clipboard.writeText(user.uid);
-              show(t("userIdCopied"));
-            }}
-            noChevron
-          />
+          <SettingRow icon={<UserCircle2 className="w-5 h-5 text-accent" />} label={t("accountSetting")} sub={user.email || user.uid} onClick={() => setEditing(true)} />
+          <SettingRow icon={<Shield className="w-5 h-5 text-secondary" />} label={t("privacySetting")} sub={t("privacySettingSub")} onClick={() => setPanel("privacy")} />
+          <SettingRow icon={<MessageCircle className="w-5 h-5 text-primary" />} label={t("chatsSetting")} sub={t("chatsSettingSub")} onClick={() => setPanel("chats")} />
+          <SettingRow icon={<Bell className="w-5 h-5 text-accent" />} label={t("notificationsSetting")} sub={t("notificationsSettingSub")} onClick={() => setPanel("notifications")} />
+          <SettingRow icon={<Database className="w-5 h-5 text-secondary" />} label={t("storageDataSetting")} sub={t("storageDataSub")} onClick={() => setPanel("storage")} />
+          <SettingRow icon={<KeyRound className="w-5 h-5 text-muted-foreground" />} label={`User ID: ${user.uid.slice(0, 10)}…`} sub={t("tapToCopyId")} onClick={() => { navigator.clipboard.writeText(user.uid); show(t("userIdCopied")); }} noChevron />
         </div>
 
         <button
@@ -264,34 +229,15 @@ export default function ProfileScreen() {
   );
 }
 
-function SettingRow({
-  icon,
-  label,
-  sub,
-  onClick,
-  noChevron,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  sub: string;
-  onClick?: () => void;
-  noChevron?: boolean;
-}) {
+function SettingRow({ icon, label, sub, onClick, noChevron }: { icon: React.ReactNode; label: string; sub: string; onClick?: () => void; noChevron?: boolean; }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 active:scale-[0.99] transition text-left border-b border-border last:border-b-0"
-    >
-      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-        {icon}
-      </div>
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 active:scale-[0.99] transition text-left border-b border-border last:border-b-0">
+      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{label}</p>
         <p className="text-xs text-muted-foreground truncate">{sub}</p>
       </div>
-      {!noChevron && (
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      )}
+      {!noChevron && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
     </button>
   );
 }

@@ -6,6 +6,7 @@ export interface AppUser {
   phone: string | null;
   displayName: string;
   photoURL: string | null;
+  bio?: string | null;
   createdAt?: string;
   lastSeen?: string;
   online?: boolean;
@@ -38,6 +39,7 @@ export async function ensureUserDoc(user: {
       phone: user.phoneNumber ?? null,
       display_name: displayName,
       photo_url: user.photoURL ?? null,
+      bio: null,
       online: true,
       last_seen: new Date().toISOString(),
     }).select().single();
@@ -66,6 +68,7 @@ function rowToAppUser(row: Record<string, unknown>): AppUser {
     phone: (row.phone as string) ?? null,
     displayName: (row.display_name as string) ?? "User",
     photoURL: (row.photo_url as string) ?? null,
+    bio: (row.bio as string) ?? null,
     online: (row.online as boolean) ?? false,
     lastSeen: (row.last_seen as string) ?? undefined,
     createdAt: (row.created_at as string) ?? undefined,
@@ -125,12 +128,13 @@ export async function setPresence(uid: string, online: boolean) {
 
 export async function updateUserProfile(
   uid: string,
-  updates: Partial<Pick<AppUser, "displayName" | "photoURL" | "phone">>,
+  updates: Partial<Pick<AppUser, "displayName" | "photoURL" | "phone" | "bio">>,
 ) {
   const mapped: Record<string, unknown> = {};
   if (updates.displayName !== undefined) mapped.display_name = updates.displayName;
   if (updates.photoURL !== undefined) mapped.photo_url = updates.photoURL;
   if (updates.phone !== undefined) mapped.phone = updates.phone;
+  if (updates.bio !== undefined) mapped.bio = updates.bio;
   await supabase.from("profiles").update(mapped).eq("uid", uid);
 }
 
