@@ -251,7 +251,24 @@ function Shell() {
         )}
         {tab === "status"      && <StatusScreen onGoToChats={() => setTab("chats")} />}
         {tab === "calls"       && <CallsScreen  onGoToChats={() => setTab("chats")} />}
-        {tab === "communities" && <CommunitiesScreen onGoToChats={() => setTab("chats")} />}
+        {tab === "communities" && (
+          <CommunitiesScreen
+            onOpenChannel={(chatId, name, memberCount) => {
+              const groupPeer = {
+                uid: chatId,
+                email: null,
+                phone: null,
+                displayName: name,
+                photoURL: null,
+                isGroup: true,
+                memberCount,
+              };
+              setChatId(chatId);
+              setPeer(groupPeer);
+              setTab("chats");
+            }}
+          />
+        )}
         {tab === "profile"     && <ProfileScreen />}
       </main>
 

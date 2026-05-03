@@ -316,6 +316,95 @@ create policy "users create their own call signals"
   to authenticated
   with check (auth.uid() = from_uid);
 
+-- ─── Communities ──────────────────────────────────────────────────────────────
+
+create table if not exists public.communities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null default '',
+  icon_color text not null default '#25D366',
+  created_by uuid references public.profiles(uid) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.community_members (
+  community_id uuid not null references public.communities(id) on delete cascade,
+  user_id uuid not null references public.profiles(uid) on delete cascade,
+  role text not null default 'member' check (role in ('admin', 'member')),
+  joined_at timestamptz not null default now(),
+  primary key (community_id, user_id)
+);
+
+-- Add community_id column to chats (for channels belonging to a community)
+alter table public.chats add column if not exists community_id uuid references public.communities(id) on delete cascade;
+
+-- Add description column to chats (for channel descriptions)
+alter table public.chats add column if not exists description text not null default '';
+
+create index if not exists communities_created_by_idx on public.communities (created_by);
+create index if not exists community_members_user_idx on public.community_members (user_id, community_id);
+create index if not exists chats_community_idx on public.chats (community_id) where community_id is not null;
+
+alter table public.communities enable row level security;
+alter table public.community_members enable row level security;
+
+-- Communities RLS
+drop policy if exists "members read their communities" on public.communities;
+create policy "members read their communities"
+  on public.communities for select
+  to authenticated
+  using (
+    created_by = auth.uid() or
+    exists (select 1 from public.community_members cm where cm.community_id = id and cm.user_id = auth.uid())
+  );
+
+drop policy if exists "authenticated users create communities" on public.communities;
+create policy "authenticated users create communities"
+  on public.communities for insert
+  to authenticated
+  with check (created_by = auth.uid());
+
+drop policy if exists "admins update communities" on public.communities;
+create policy "admins update communities"
+  on public.communities for update
+  to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
+
+drop policy if exists "admins delete communities" on public.communities;
+create policy "admins delete communities"
+  on public.communities for delete
+  to authenticated
+  using (created_by = auth.uid());
+
+-- Community members RLS
+drop policy if exists "members read community memberships" on public.community_members;
+create policy "members read community memberships"
+  on public.community_members for select
+  to authenticated
+  using (
+    user_id = auth.uid() or
+    exists (select 1 from public.community_members cm where cm.community_id = community_id and cm.user_id = auth.uid())
+  );
+
+drop policy if exists "admins manage community members" on public.community_members;
+create policy "admins manage community members"
+  on public.community_members for insert
+  to authenticated
+  with check (
+    user_id = auth.uid() or
+    exists (select 1 from public.community_members cm where cm.community_id = community_id and cm.user_id = auth.uid() and cm.role = 'admin')
+  );
+
+drop policy if exists "users leave communities" on public.community_members;
+create policy "users leave communities"
+  on public.community_members for delete
+  to authenticated
+  using (
+    user_id = auth.uid() or
+    exists (select 1 from public.community_members cm where cm.community_id = community_id and cm.user_id = auth.uid() and cm.role = 'admin')
+  );
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'chat-media',
