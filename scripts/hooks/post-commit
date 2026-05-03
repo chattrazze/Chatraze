@@ -1,0 +1,48 @@
+#!/bin/bash
+# Automatically push commits on the main branch to GitHub.
+# Credentials are passed ephemerally via GIT_ASKPASS and never written to
+# .git/config or any persistent file on disk.
+
+# Only sync commits made on the main branch.
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  exit 0
+fi
+
+if [ -z "$GITHUB__ACCESS_TOKEN" ]; then
+  echo "[github-sync] WARNING: GITHUB__ACCESS_TOKEN is not set — skipping push." >&2
+  exit 0
+fi
+
+GITHUB_URL="https://github.com/chattrazze/Chatraze.git"
+TEMP_REF="refs/github-sync-temp/main"
+
+ASKPASS_SCRIPT="$(mktemp)"
+cat > "$ASKPASS_SCRIPT" << 'ASKPASS'
+#!/bin/bash
+case "$1" in
+  Username*) echo "x-access-token" ;;
+  Password*) echo "$GITHUB__ACCESS_TOKEN" ;;
+esac
+ASKPASS
+chmod +x "$ASKPASS_SCRIPT"
+
+# Try to fetch the remote main into a temp ref for --force-with-lease comparison.
+# If fetch fails (e.g. remote branch does not yet exist), fall back to a plain
+# push to bootstrap the remote for the first time.
+if GIT_ASKPASS="$ASKPASS_SCRIPT" git fetch "$GITHUB_URL" "main:$TEMP_REF" 2>/dev/null; then
+  PUSH_ARGS=("main:main" "--force-with-lease=main:$TEMP_REF")
+else
+  # Remote main does not exist yet — bootstrap with a plain push.
+  PUSH_ARGS=("main:main")
+fi
+
+if GIT_ASKPASS="$ASKPASS_SCRIPT" git push "$GITHUB_URL" "${PUSH_ARGS[@]}"; then
+  echo "[github-sync] Pushed main to GitHub successfully."
+else
+  echo "[github-sync] WARNING: Push to GitHub failed. Changes are committed locally." >&2
+fi
+
+git update-ref -d "$TEMP_REF" 2>/dev/null || true
+rm -f "$ASKPASS_SCRIPT"
+exit 0
