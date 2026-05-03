@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LangProvider, useLang } from "@/hooks/useLang";
+import SplashScreen from "@/components/SplashScreen";
 import AuthScreen from "@/components/AuthScreen";
 import Sidebar from "@/components/Sidebar";
 import ChatView from "@/components/ChatView";
@@ -27,6 +28,7 @@ import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
 function Shell() {
   const { user, loading } = useAuth();
   const { t } = useLang();
+  const [showSplash, setShowSplash] = useState(true);
   const [chatId, setChatId]   = useState<string | null>(null);
   const [peer, setPeer]       = useState<AppUser | null>(null);
   const [tab, setTab]         = useState<TabKey>("chats");
@@ -183,6 +185,10 @@ function Shell() {
     },
     [user, initiateCall],
   );
+
+  if (showSplash) {
+    return <SplashScreen onDone={() => setShowSplash(false)} />;
+  }
 
   if (loading) {
     return (
