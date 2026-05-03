@@ -39,7 +39,7 @@ function Shell() {
   const callPeerRef       = useRef<{ uid: string; name: string; direction: "incoming" | "outgoing" } | null>(null);
 
   const webrtc = useWebRTC(user?.uid ?? "", user?.displayName ?? user?.email ?? "Me");
-  const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, localVideoRef, remoteVideoRef, remoteAudioRef } = webrtc;
+  const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, localVideoRef, remoteVideoRef, remoteAudioRef, remoteEarpieceRef } = webrtc;
 
   const onUnreadChange = useCallback((n: number) => setUnreadTotal(n), []);
 
@@ -215,6 +215,7 @@ function Shell() {
           localVideoRef={localVideoRef}
           remoteVideoRef={remoteVideoRef}
           remoteAudioRef={remoteAudioRef}
+          remoteEarpieceRef={remoteEarpieceRef}
         />
       )}
 

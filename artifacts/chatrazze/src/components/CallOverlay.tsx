@@ -26,6 +26,7 @@ interface Props {
   localVideoRef: React.RefObject<HTMLVideoElement | null>;
   remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
   remoteAudioRef: React.RefObject<HTMLAudioElement | null>;
+  remoteEarpieceRef: React.RefObject<HTMLVideoElement | null>;
 }
 
 export default function CallOverlay({
@@ -40,6 +41,7 @@ export default function CallOverlay({
   localVideoRef,
   remoteVideoRef,
   remoteAudioRef,
+  remoteEarpieceRef,
 }: Props) {
   const { t } = useLang();
   const { phase, peerName, kind, localStream, remoteStream, muted, cameraOff, speakerOn, elapsedSec } = state;
@@ -130,10 +132,17 @@ export default function CallOverlay({
 
   return (
     <div className="fixed inset-0 z-[999] flex flex-col overflow-hidden select-none" style={{ background: "#111" }}>
+      {/* Earpiece: hidden <video playsInline> → routes to earpiece on iOS (default) */}
+      <video
+        ref={remoteEarpieceRef}
+        autoPlay
+        playsInline
+        style={{ position: "absolute", width: 0, height: 0, opacity: 0, pointerEvents: "none" }}
+      />
+      {/* Speaker: hidden <audio> → routes to loudspeaker */}
       <audio
         ref={remoteAudioRef}
         autoPlay
-        playsInline
         style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}
       />
 

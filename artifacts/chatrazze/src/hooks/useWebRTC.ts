@@ -40,7 +40,7 @@ const INITIAL: WebRTCState = {
   remoteStream: null,
   muted: false,
   cameraOff: false,
-  speakerOn: true,
+  speakerOn: false, // earpiece by default — like WhatsApp
   elapsedSec: 0,
 };
 
@@ -67,7 +67,12 @@ export function useWebRTC(myUid: string, myName: string) {
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+
+  // Two audio elements for routing:
+  // - remoteEarpieceRef: hidden <video playsInline> → routes to earpiece on iOS
+  // - remoteAudioRef:    hidden <audio>              → routes to loudspeaker
+  const remoteEarpieceRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef    = useRef<HTMLAudioElement>(null);
 
   function set(patch: Partial<WebRTCState>) {
     setState((prev) => {
@@ -102,6 +107,10 @@ export function useWebRTC(myUid: string, myName: string) {
     remoteDescSetRef.current = false;
     activeCallIdRef.current = null;
 
+    if (remoteEarpieceRef.current) {
+      try { remoteEarpieceRef.current.pause(); } catch {}
+      remoteEarpieceRef.current.srcObject = null;
+    }
     if (remoteAudioRef.current) {
       try { remoteAudioRef.current.pause(); } catch {}
       remoteAudioRef.current.srcObject = null;
@@ -113,35 +122,57 @@ export function useWebRTC(myUid: string, myName: string) {
     stateRef.current = INITIAL;
   }
 
-  function attachRemoteStream(stream: MediaStream) {
-    log("Attaching remote stream, tracks:", stream.getTracks().map((t) => `${t.kind}:${t.enabled}`));
+  // Route the remote stream to earpiece or speaker element based on current state
+  function routeAudio(stream: MediaStream, speakerOn: boolean) {
+    const earpiece = remoteEarpieceRef.current;
+    const speaker  = remoteAudioRef.current;
 
-    stream.getAudioTracks().forEach((track) => { track.enabled = true; });
-
-    const audio = remoteAudioRef.current;
-    if (audio) {
-      if (audio.srcObject !== stream) audio.srcObject = stream;
-      audio.muted = false;
-      audio.volume = 1.0;
-      audio.autoplay = true;
-      audio.setAttribute("playsinline", "");
-
-      const tryPlay = () => audio.play().catch(() => {});
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          log("Audio autoplay blocked, retrying on user interaction:", err);
-          const onInteract = () => {
-            tryPlay();
-            document.removeEventListener("click", onInteract);
-            document.removeEventListener("touchstart", onInteract);
+    if (speakerOn) {
+      // Speaker: use <audio> element — goes to loudspeaker
+      if (speaker) {
+        if (speaker.srcObject !== stream) speaker.srcObject = stream;
+        speaker.muted  = false;
+        speaker.volume = 1.0;
+        speaker.play().catch(() => {});
+      }
+      // Mute earpiece element
+      if (earpiece) {
+        earpiece.muted = true;
+        earpiece.srcObject = null;
+      }
+    } else {
+      // Earpiece: use hidden <video playsInline> — routes to earpiece on iOS
+      if (earpiece) {
+        if (earpiece.srcObject !== stream) earpiece.srcObject = stream;
+        earpiece.muted  = false;
+        earpiece.volume = 1.0;
+        earpiece.play().catch((err) => {
+          log("Earpiece autoplay blocked, retrying on interaction:", err);
+          const retry = () => {
+            earpiece.play().catch(() => {});
+            document.removeEventListener("click", retry);
+            document.removeEventListener("touchstart", retry);
           };
-          document.addEventListener("click", onInteract, { once: true });
-          document.addEventListener("touchstart", onInteract, { once: true });
+          document.addEventListener("click", retry, { once: true });
+          document.addEventListener("touchstart", retry, { once: true });
         });
       }
+      // Mute speaker element
+      if (speaker) {
+        speaker.muted = true;
+        speaker.srcObject = null;
+      }
     }
+  }
 
+  function attachRemoteStream(stream: MediaStream) {
+    log("Attaching remote stream, tracks:", stream.getTracks().map((t) => `${t.kind}:${t.enabled}`));
+    stream.getAudioTracks().forEach((track) => { track.enabled = true; });
+
+    // Route audio through earpiece or speaker
+    routeAudio(stream, stateRef.current.speakerOn);
+
+    // Attach video track to remote video element
     const video = remoteVideoRef.current;
     if (video) {
       if (video.srcObject !== stream) video.srcObject = stream;
@@ -169,10 +200,6 @@ export function useWebRTC(myUid: string, myName: string) {
     const pc = new RTCPeerConnection(ICE_CONFIG);
     pcRef.current = pc;
     remoteDescSetRef.current = false;
-
-    // NOTE: Do NOT call addTransceiver here — let addTrack() create transceivers
-    // implicitly. Pre-creating transceivers with no local track causes sender.track
-    // to be null when the remote side attaches tracks, resulting in one-way audio.
 
     pc.ontrack = (ev) => {
       log("ontrack fired. streams:", ev.streams.length, "track:", ev.track.kind);
@@ -230,15 +257,13 @@ export function useWebRTC(myUid: string, myName: string) {
   async function getMedia(kind: CallKind): Promise<MediaStream> {
     log("Requesting media, kind:", kind);
 
-    // High-quality voice constraints — aggressive noise/echo cancellation
     const audioConstraints: MediaTrackConstraints = {
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: true,
-      channelCount: 1,          // Mono is better for voice calls
-      sampleRate: 48000,        // Opus prefers 48 kHz
+      channelCount: 1,
+      sampleRate: 48000,
       sampleSize: 16,
-      // Chrome legacy hints (ignored on other browsers, no harm done)
       // @ts-expect-error non-standard Chrome hints
       googEchoCancellation: true,
       googAutoGainControl: true,
@@ -261,8 +286,6 @@ export function useWebRTC(myUid: string, myName: string) {
     return stream;
   }
 
-  // Simply add all local tracks — addTrack creates sendrecv transceivers automatically.
-  // This is the most reliable approach across browsers and avoids sender.track===null bugs.
   function attachLocalStreamToPc(pc: RTCPeerConnection, stream: MediaStream) {
     stream.getTracks().forEach((track) => {
       try {
@@ -327,9 +350,6 @@ export function useWebRTC(myUid: string, myName: string) {
         }
 
         const pc = createPeer(sig.callId, sig.from, sig.kind);
-
-        // For answerer: attach local tracks BEFORE setRemoteDescription so the
-        // answer SDP includes our send directions — fixes one-way audio.
         attachLocalStreamToPc(pc, stream);
 
         log("Setting remote description (offer)");
@@ -452,16 +472,11 @@ export function useWebRTC(myUid: string, myName: string) {
 
   const toggleSpeaker = useCallback(() => {
     const speakerOn = !stateRef.current.speakerOn;
-    const audio = remoteAudioRef.current;
-    if (audio) {
-      // Use setSinkId where available (Chrome desktop, some Android browsers)
-      // On iOS Safari this will silently fail — the speaker button is UI-only there
-      const el = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
-      if (el.setSinkId) {
-        el.setSinkId(speakerOn ? "speaker" : "").catch(() => {});
-      }
-      // Mute/unmute as a visual fallback indicator
-      audio.volume = speakerOn ? 1.0 : 0.5;
+    const stream = stateRef.current.remoteStream;
+    log("toggleSpeaker →", speakerOn ? "speaker" : "earpiece");
+
+    if (stream) {
+      routeAudio(stream, speakerOn);
     }
     set({ speakerOn });
   }, []);
@@ -488,5 +503,6 @@ export function useWebRTC(myUid: string, myName: string) {
     localVideoRef,
     remoteVideoRef,
     remoteAudioRef,
+    remoteEarpieceRef,
   };
 }
