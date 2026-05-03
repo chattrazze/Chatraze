@@ -9,7 +9,7 @@ import {
   toggleReaction,
   uploadMedia,
 } from "@/lib/chatService";
-import { AppUser, listenToUser } from "@/lib/userService";
+import { AppUser, listenToUser, getUser } from "@/lib/userService";
 import { useAuth } from "@/hooks/useAuth";
 import Avatar from "@/components/Avatar";
 import UserProfilePage from "@/components/UserProfilePage";
@@ -77,6 +77,8 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   // "user" | "group" | null
   const [profilePage, setProfilePage] = useState<"user" | "group" | null>(null);
   const lastMsgIdRef = useRef<string | null>(null);
+  // Map uid → displayName for group members
+  const [membersMap, setMembersMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -129,6 +131,20 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length]);
+
+  // Load group member names
+  useEffect(() => {
+    if (!peer.isGroup || !peer.members?.length) return;
+    const missing = peer.members.filter((uid) => uid !== user?.uid && !membersMap[uid]);
+    if (!missing.length) return;
+    Promise.all(missing.map((uid) => getUser(uid))).then((results) => {
+      setMembersMap((prev) => {
+        const next = { ...prev };
+        for (const u of results) if (u) next[u.uid] = u.displayName || u.email || u.uid.slice(0, 8);
+        return next;
+      });
+    });
+  }, [peer.isGroup, peer.members, user?.uid, membersMap]);
 
   const grouped = useMemo(() => groupByDay(messages, t), [messages, t]);
 
@@ -319,6 +335,8 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   peerUid={peer.uid}
                   myUid={user.uid}
                   peer={peer}
+                  isGroup={!!peer.isGroup}
+                  senderName={peer.isGroup && m.senderId !== user.uid ? (membersMap[m.senderId] ?? m.senderId.slice(0, 8)) : undefined}
                   onReact={(emoji) => toggleReaction(chatId, m.id, user.uid, emoji).catch(() => {})}
                   onCall={onCall}
                 />
@@ -481,11 +499,24 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
 }
 
 /* ─── MessageRow ──────────────────────────────────────────────────────────── */
+// Deterministic color per sender uid — like WhatsApp group names
+const GROUP_COLORS = [
+  "#FF6B6B","#FF9E4F","#FFCA3A","#6BCB77","#4D96FF",
+  "#C77DFF","#FF85A1","#00C9A7","#FFC6FF","#FDFFB6",
+];
+function senderColor(uid: string): string {
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+  return GROUP_COLORS[Math.abs(hash) % GROUP_COLORS.length];
+}
+
 function MessageRow({
-  m, mine, peerUid, myUid, peer, onReact, onCall,
+  m, mine, peerUid, myUid, peer, isGroup, senderName, onReact, onCall,
 }: {
   m: MessageDoc; mine: boolean; peerUid: string; myUid: string;
   peer: AppUser;
+  isGroup?: boolean;
+  senderName?: string;
   onReact: (emoji: string) => void;
   onCall?: (peer: AppUser, kind: CallKind) => void;
 }) {
@@ -515,6 +546,15 @@ function MessageRow({
   return (
     <div className={`group/msg flex ${mine ? "justify-end" : "justify-start"} relative`}>
       <div className="relative max-w-[78%]">
+        {/* Group sender name — shown above bubble for others' messages */}
+        {isGroup && senderName && !mine && (
+          <p
+            className="text-[11px] font-semibold mb-0.5 px-1 leading-tight"
+            style={{ color: senderColor(m.senderId) }}
+          >
+            {senderName}
+          </p>
+        )}
         <div
           className={`rounded-2xl px-3 py-2 ${mine ? "bubble-out" : "bubble-in"} select-none`}
           style={{ borderTopRightRadius: mine ? 6 : undefined, borderTopLeftRadius: mine ? undefined : 6 }}
