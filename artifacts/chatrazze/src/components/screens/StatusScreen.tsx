@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   CircleDot,
   Image as ImageIcon,
   Plus,
   X,
   FileText,
+  Heart,
+  MoreVertical,
+  Send,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -20,6 +23,8 @@ import {
   viewStatus,
 } from "@/lib/statusService";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function timeLeft(createdIso: string): string {
   const created = new Date(createdIso).getTime();
   const TTL_MS = 24 * 60 * 60 * 1000;
@@ -31,9 +36,27 @@ function timeLeft(createdIso: string): string {
   return `${m}m`;
 }
 
-// Re-use the existing public "chat-media" bucket so we don't depend on a
-// separate bucket that the project may not have provisioned yet.
+function formatViewerTime(createdIso: string): string {
+  const d = new Date(createdIso);
+  const now = new Date();
+  const hhmm = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getDate() === yesterday.getDate() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getFullYear() === yesterday.getFullYear();
+  if (isToday) return `اليوم، ${hhmm}`;
+  if (isYesterday) return `أمس، ${hhmm}`;
+  return `${d.toLocaleDateString([], { day: "2-digit", month: "2-digit" })}، ${hhmm}`;
+}
+
 const STATUS_BUCKET = "chat-media";
+const STORY_DURATION_MS = 6000;
 
 async function compressImage(blob: Blob, maxDim = 1600, quality = 0.85): Promise<Blob> {
   const url = URL.createObjectURL(blob);
@@ -47,44 +70,272 @@ async function compressImage(blob: Blob, maxDim = 1600, quality = 0.85): Promise
   const w = Math.round(img.width * ratio);
   const h = Math.round(img.height * ratio);
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = w; canvas.height = h;
   canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (b) => { if (b) resolve(b); else reject(new Error("Canvas toBlob failed")); },
-      "image/jpeg",
-      quality,
+      "image/jpeg", quality,
     );
   });
 }
 
 async function uploadStatusImage(file: File, uid: string): Promise<string> {
   const compressed = file.type.startsWith("image/")
-    ? await compressImage(file, 1600, 0.85)
-    : file;
-
+    ? await compressImage(file, 1600, 0.85) : file;
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60);
   const path = `status/${uid}/${Date.now()}_${safe}`;
-
   const { data, error } = await supabase.storage
     .from(STATUS_BUCKET)
-    .upload(path, compressed, {
-      cacheControl: "31536000",
-      upsert: false,
-      contentType: file.type || "image/jpeg",
-    });
-
-  if (error) {
-    // Bubble up a friendlier error so the toast text is meaningful.
-    throw new Error(error.message || "Upload failed");
-  }
-
-  const { data: urlData } = supabase.storage
-    .from(STATUS_BUCKET)
-    .getPublicUrl(data.path);
+    .upload(path, compressed, { cacheControl: "31536000", upsert: false, contentType: file.type || "image/jpeg" });
+  if (error) throw new Error(error.message || "Upload failed");
+  const { data: urlData } = supabase.storage.from(STATUS_BUCKET).getPublicUrl(data.path);
   return urlData.publicUrl;
 }
+
+// ── WhatsApp-style Status Viewer ─────────────────────────────────────────────
+
+function StatusViewer({
+  statuses,
+  startIndex,
+  myUid,
+  onClose,
+}: {
+  statuses: UserStatus[];
+  startIndex: number;
+  myUid: string;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(startIndex);
+  const [progress, setProgress] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [reply, setReply] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  const progressRef = useRef<number | null>(null);
+  const startRef = useRef<number>(Date.now());
+  const pausedAtRef = useRef<number>(0);
+
+  const current = statuses[idx];
+  const isOwn = current?.user_id === myUid;
+
+  const goNext = useCallback(() => {
+    setLiked(false);
+    if (idx < statuses.length - 1) {
+      setIdx((i) => i + 1);
+      setProgress(0);
+      startRef.current = Date.now();
+    } else {
+      onClose();
+    }
+  }, [idx, statuses.length, onClose]);
+
+  const goPrev = useCallback(() => {
+    setLiked(false);
+    if (idx > 0) {
+      setIdx((i) => i - 1);
+      setProgress(0);
+      startRef.current = Date.now();
+    }
+  }, [idx]);
+
+  // Animate progress bar
+  useEffect(() => {
+    setProgress(0);
+    setLiked(false);
+    startRef.current = Date.now();
+    pausedAtRef.current = 0;
+
+    const tick = () => {
+      if (!paused) {
+        const elapsed = Date.now() - startRef.current;
+        const p = Math.min(elapsed / STORY_DURATION_MS, 1);
+        setProgress(p);
+        if (p >= 1) {
+          goNext();
+          return;
+        }
+      }
+      progressRef.current = requestAnimationFrame(tick);
+    };
+    progressRef.current = requestAnimationFrame(tick);
+    return () => { if (progressRef.current) cancelAnimationFrame(progressRef.current); };
+  }, [idx, paused, goNext]);
+
+  // Pause on reply focus
+  function handleReplyFocus() { setPaused(true); }
+  function handleReplyBlur() {
+    if (!reply.trim()) {
+      setPaused(false);
+      startRef.current = Date.now() - progress * STORY_DURATION_MS;
+    }
+  }
+
+  function handleTap(e: React.MouseEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest("button, input, textarea")) return;
+    const x = e.clientX;
+    const w = window.innerWidth;
+    if (x < w * 0.35) goPrev();
+    else goNext();
+  }
+
+  if (!current) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
+      onClick={handleTap}
+      onMouseDown={() => setPaused(true)}
+      onMouseUp={() => {
+        setPaused(false);
+        startRef.current = Date.now() - progress * STORY_DURATION_MS;
+      }}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => {
+        setPaused(false);
+        startRef.current = Date.now() - progress * STORY_DURATION_MS;
+      }}
+    >
+      {/* Progress bars */}
+      <div className="absolute top-0 left-0 right-0 flex gap-1 px-3 pt-2 z-20">
+        {statuses.map((_, i) => (
+          <div key={i} className="flex-1 h-[2.5px] rounded-full bg-white/30 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-white transition-none"
+              style={{
+                width: i < idx ? "100%" : i === idx ? `${progress * 100}%` : "0%",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Header */}
+      <div className="absolute top-5 left-0 right-0 flex items-center gap-3 px-4 z-20">
+        {current.user_avatar ? (
+          <img src={current.user_avatar} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
+        ) : (
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+            style={{ background: current.background_color || "#333" }}
+          >
+            {(current.user_name || "?").charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm leading-tight truncate">{current.user_name}</p>
+          <p className="text-white/60 text-[11px] leading-tight">{formatViewerTime(current.created_at)}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          {isOwn && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); }}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10"
+            >
+              <MoreVertical className="w-5 h-5 text-white" />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+        </div>
+      </div>
+
+      {/* Owner menu */}
+      {showMenu && (
+        <div
+          className="absolute top-16 right-4 z-30 glass rounded-xl overflow-hidden shadow-xl border border-border"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { onClose(); }}
+            className="w-full px-5 py-3 text-sm text-destructive hover:bg-white/5 text-left"
+          >
+            حذف الستاتي
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex-1 flex items-center justify-center">
+        {current.media_url ? (
+          <img
+            src={current.media_url}
+            className="w-full h-full object-cover"
+            alt="status"
+            draggable={false}
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center px-10"
+            style={{ background: current.background_color || "#1a1a2e" }}
+          >
+            <p className="text-white text-2xl font-semibold text-center leading-relaxed">
+              {current.content}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Caption overlay on image */}
+      {current.media_url && current.content && (
+        <div className="absolute bottom-24 left-0 right-0 px-6 pointer-events-none">
+          <p className="text-white text-base font-medium text-center drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
+            {current.content}
+          </p>
+        </div>
+      )}
+
+      {/* Bottom bar */}
+      <div
+        className="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-4 pb-8 pt-3"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {!isOwn ? (
+          <>
+            <input
+              type="text"
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              onFocus={handleReplyFocus}
+              onBlur={handleReplyBlur}
+              placeholder="رد…"
+              className="flex-1 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2.5 text-white text-sm placeholder:text-white/50 outline-none focus:border-white/40"
+            />
+            {reply.trim() ? (
+              <button
+                onClick={() => { setReply(""); setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
+                className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-90 transition"
+              >
+                <Send className="w-5 h-5 text-white" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setLiked((v) => !v)}
+                className="w-11 h-11 flex items-center justify-center shrink-0 active:scale-90 transition"
+              >
+                <Heart
+                  className="w-7 h-7 transition-all"
+                  fill={liked ? "#FF4E00" : "none"}
+                  stroke={liked ? "#FF4E00" : "white"}
+                  strokeWidth={liked ? 0 : 2}
+                />
+              </button>
+            )}
+          </>
+        ) : (
+          <p className="text-white/50 text-xs text-center w-full pb-1">استاتيك</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function StatusScreen({
   onGoToChats: _onGoToChats,
@@ -94,27 +345,25 @@ export default function StatusScreen({
   const { user } = useAuth();
   const { show } = useToast();
   const { t } = useLang();
-  const [myStatus, setMyStatus] = useState<UserStatus | null>(null);
-  const [others, setOthers] = useState<UserStatus[]>([]);
-  const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+  const [myStatus, setMyStatus]       = useState<UserStatus | null>(null);
+  const [others, setOthers]           = useState<UserStatus[]>([]);
+  const [viewedIds, setViewedIds]     = useState<Set<string>>(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
-  const [viewingStatus, setViewingStatus] = useState<UserStatus | null>(null);
-  const [draft, setDraft] = useState("");
+
+  // Viewer: list of statuses + starting index
+  const [viewerStatuses, setViewerStatuses] = useState<UserStatus[] | null>(null);
+  const [viewerStart, setViewerStart]       = useState(0);
+
+  const [draft, setDraft]           = useState("");
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [bgColor, setBgColor] = useState("#1a1a2e");
-  const [posting, setPosting] = useState(false);
+  const [bgColor, setBgColor]       = useState("#1a1a2e");
+  const [posting, setPosting]       = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const COLORS = [
-    "#1a1a2e",
-    "#16213e",
-    "#0f3460",
-    "#533483",
-    "#e94560",
-    "#2d6a4f",
-    "#6b705c",
-    "#9b2226",
+    "#1a1a2e","#16213e","#0f3460","#533483",
+    "#e94560","#2d6a4f","#6b705c","#9b2226",
   ];
 
   async function refresh() {
@@ -129,15 +378,9 @@ export default function StatusScreen({
   useEffect(() => {
     if (!user) return;
     refresh();
-    const t = setInterval(refresh, 60_000);
-    const unsub = subscribeToStatusChanges(
-      () => refresh(),
-      () => refresh(),
-    );
-    return () => {
-      clearInterval(t);
-      unsub();
-    };
+    const interval = setInterval(refresh, 60_000);
+    const unsub = subscribeToStatusChanges(() => refresh(), () => refresh());
+    return () => { clearInterval(interval); unsub(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -157,9 +400,7 @@ export default function StatusScreen({
     setPosting(true);
     try {
       let mediaUrl: string | undefined;
-      if (pendingFile) {
-        mediaUrl = await uploadStatusImage(pendingFile, user.uid);
-      }
+      if (pendingFile) mediaUrl = await uploadStatusImage(pendingFile, user.uid);
       const result = await upsertStatus({
         user_id: user.uid,
         user_name: user.displayName || user.email || "Anonymous",
@@ -171,9 +412,7 @@ export default function StatusScreen({
       });
       if (!result) throw new Error("Failed to save status");
       setMyStatus(result);
-      setDraft("");
-      setPreviewImg(null);
-      setPendingFile(null);
+      setDraft(""); setPreviewImg(null); setPendingFile(null);
       setComposerOpen(false);
       show(t("statusPosted"));
       refresh();
@@ -188,11 +427,7 @@ export default function StatusScreen({
   async function clearStatus() {
     if (!user) return;
     const ok = await deleteStatus(user.uid);
-    if (ok) {
-      setMyStatus(null);
-      show(t("statusRemoved"));
-      refresh();
-    }
+    if (ok) { setMyStatus(null); show(t("statusRemoved")); refresh(); }
   }
 
   function openComposer() {
@@ -203,17 +438,21 @@ export default function StatusScreen({
     setComposerOpen(true);
   }
 
-  async function openViewer(status: UserStatus) {
-    setViewingStatus(status);
-    if (user && status.user_id !== user.uid) {
-      try {
-        await viewStatus(status.id, user.uid);
-        setViewedIds((s) => new Set(s).add(status.id));
-      } catch {
-        /* ignore */
+  async function openViewer(statuses: UserStatus[], startIdx: number) {
+    setViewerStatuses(statuses);
+    setViewerStart(startIdx);
+    if (user) {
+      const s = statuses[startIdx];
+      if (s && s.user_id !== user.uid) {
+        try {
+          await viewStatus(s.id, user.uid);
+          setViewedIds((prev) => new Set(prev).add(s.id));
+        } catch { /* ignore */ }
       }
     }
   }
+
+  const allStatuses = [...(myStatus ? [myStatus] : []), ...others];
 
   return (
     <div className="flex-1 flex flex-col h-full">
@@ -230,16 +469,9 @@ export default function StatusScreen({
         >
           <div className="relative shrink-0">
             {myStatus?.media_url ? (
-              <img
-                src={myStatus.media_url}
-                className="w-14 h-14 rounded-full object-cover ring-2 ring-primary"
-                alt="status"
-              />
+              <img src={myStatus.media_url} className="w-14 h-14 rounded-full object-cover ring-2 ring-primary" alt="status" />
             ) : myStatus ? (
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center ring-2 ring-primary"
-                style={{ background: myStatus.background_color }}
-              >
+              <div className="w-14 h-14 rounded-full flex items-center justify-center ring-2 ring-primary" style={{ background: myStatus.background_color }}>
                 <FileText className="w-6 h-6 text-white/90" />
               </div>
             ) : (
@@ -254,40 +486,22 @@ export default function StatusScreen({
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm">{t("myStatus")}</p>
             <p className="text-xs text-muted-foreground truncate">
-              {myStatus
-                ? myStatus.content || t("addText")
-                : t("tapToAdd")}
+              {myStatus ? myStatus.content || t("addText") : t("tapToAdd")}
             </p>
           </div>
-          {myStatus && (
-            <span className="text-[10px] text-muted-foreground shrink-0">
-              {timeLeft(myStatus.created_at)}
-            </span>
-          )}
+          {myStatus && <span className="text-[10px] text-muted-foreground shrink-0">{timeLeft(myStatus.created_at)}</span>}
         </button>
 
         {myStatus && (
           <div className="flex gap-2 px-1">
-            <button
-              onClick={() => setViewingStatus(myStatus)}
-              className="text-xs text-primary hover:underline"
-            >
-              {t("preview")}
-            </button>
+            <button onClick={() => openViewer([myStatus], 0)} className="text-xs text-primary hover:underline">{t("preview")}</button>
             <span className="text-muted-foreground text-xs">·</span>
-            <button
-              onClick={clearStatus}
-              className="text-xs text-destructive hover:underline"
-            >
-              {t("removeStatus")}
-            </button>
+            <button onClick={clearStatus} className="text-xs text-destructive hover:underline">{t("removeStatus")}</button>
           </div>
         )}
 
         {/* Others' statuses */}
-        <p className="text-xs uppercase tracking-wide text-muted-foreground px-2 pt-4">
-          {t("recentUpdates")}
-        </p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground px-2 pt-4">{t("recentUpdates")}</p>
 
         {others.length === 0 ? (
           <div className="glass rounded-2xl p-8 text-center">
@@ -295,61 +509,38 @@ export default function StatusScreen({
               <CircleDot className="w-6 h-6 text-muted-foreground" />
             </div>
             <p className="font-semibold">{t("noUpdates")}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("noUpdatesDesc")}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t("noUpdatesDesc")}</p>
           </div>
         ) : (
           <div className="space-y-1">
-            {others.map((s) => {
+            {others.map((s, i) => {
               const unviewed = !viewedIds.has(s.id);
               return (
                 <button
                   key={s.id}
-                  onClick={() => openViewer(s)}
+                  onClick={() => openViewer(others, i)}
                   className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 active:scale-[0.99] transition text-start"
                 >
-                  <div
-                    className={`w-12 h-12 rounded-full p-[2px] shrink-0 ${
-                      unviewed
-                        ? "bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00]"
-                        : "bg-white/15"
-                    }`}
-                  >
+                  <div className={`w-12 h-12 rounded-full p-[2.5px] shrink-0 ${unviewed ? "bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00]" : "bg-white/15"}`}>
                     <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
                       {s.user_avatar ? (
-                        <img
-                          src={s.user_avatar}
-                          className="w-full h-full object-cover"
-                          alt={s.user_name}
-                        />
+                        <img src={s.user_avatar} className="w-full h-full object-cover" alt={s.user_name} />
                       ) : s.media_url ? (
-                        <img
-                          src={s.media_url}
-                          className="w-full h-full object-cover"
-                          alt={s.user_name}
-                        />
+                        <img src={s.media_url} className="w-full h-full object-cover" alt={s.user_name} />
                       ) : (
-                        <div
-                          className="w-full h-full flex items-center justify-center text-white font-semibold"
-                          style={{ background: s.background_color }}
-                        >
+                        <div className="w-full h-full flex items-center justify-center text-white font-semibold" style={{ background: s.background_color }}>
                           {(s.user_name || "?").charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">
-                      {s.user_name}
-                    </p>
+                    <p className="font-semibold text-sm truncate">{s.user_name}</p>
                     <p className="text-xs text-muted-foreground truncate">
                       {s.content || (s.type === "image" ? "Photo" : "Status")}
                     </p>
                   </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {timeLeft(s.created_at)}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">{timeLeft(s.created_at)}</span>
                 </button>
               );
             })}
@@ -364,11 +555,7 @@ export default function StatusScreen({
             <header className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h2 className="font-semibold">{t("newStatus")}</h2>
               <button
-                onClick={() => {
-                  setComposerOpen(false);
-                  setPreviewImg(null);
-                  setPendingFile(null);
-                }}
+                onClick={() => { setComposerOpen(false); setPreviewImg(null); setPendingFile(null); }}
                 className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
@@ -377,30 +564,19 @@ export default function StatusScreen({
             <div className="p-4 space-y-3">
               {previewImg ? (
                 <div className="relative rounded-xl overflow-hidden">
-                  <img
-                    src={previewImg}
-                    className="w-full max-h-48 object-cover rounded-xl"
-                    alt="preview"
-                  />
+                  <img src={previewImg} className="w-full max-h-48 object-cover rounded-xl" alt="preview" />
                   <button
-                    onClick={() => {
-                      setPreviewImg(null);
-                      setPendingFile(null);
-                    }}
+                    onClick={() => { setPreviewImg(null); setPendingFile(null); }}
                     className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center"
                   >
                     <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
               ) : (
-                <div
-                  className="w-full h-32 rounded-xl flex items-center justify-center text-white text-sm font-semibold"
-                  style={{ background: bgColor }}
-                >
+                <div className="w-full h-32 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: bgColor }}>
                   {draft.trim() || t("whatsOnMind")}
                 </div>
               )}
-
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, 200))}
@@ -409,25 +585,19 @@ export default function StatusScreen({
                 autoFocus
                 className="w-full bg-input rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
-
               {!previewImg && (
                 <div className="flex gap-2 flex-wrap">
                   {COLORS.map((color) => (
                     <button
                       key={color}
                       onClick={() => setBgColor(color)}
-                      className={`w-7 h-7 rounded-full transition ${
-                        bgColor === color
-                          ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                          : ""
-                      }`}
+                      className={`w-7 h-7 rounded-full transition ${bgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                       style={{ background: color }}
                       aria-label={`color ${color}`}
                     />
                   ))}
                 </div>
               )}
-
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <button
@@ -437,9 +607,7 @@ export default function StatusScreen({
                     <ImageIcon className="w-4 h-4" />
                     {t("addImage")}
                   </button>
-                  <span className="text-xs text-muted-foreground">
-                    {draft.length}/200
-                  </span>
+                  <span className="text-xs text-muted-foreground">{draft.length}/200</span>
                 </div>
                 <button
                   onClick={save}
@@ -452,80 +620,21 @@ export default function StatusScreen({
               <p className="text-[10px] text-muted-foreground">{t("disappears")}</p>
             </div>
           </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageSelect}
-          />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
         </div>
       )}
 
-      {/* Fullscreen Status Viewer */}
-      {viewingStatus && (
-        <div
-          className="fixed inset-0 z-50 bg-black flex flex-col"
-          onClick={() => setViewingStatus(null)}
-        >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-white/20 rounded-full mx-4 mt-3">
-            <div
-              className="h-full bg-white rounded-full animate-[shrink_5s_linear_forwards]"
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div className="absolute top-5 left-4 right-14 flex items-center gap-2 z-10">
-            {viewingStatus.user_avatar ? (
-              <img
-                src={viewingStatus.user_avatar}
-                className="w-9 h-9 rounded-full object-cover"
-                alt={viewingStatus.user_name}
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white font-semibold">
-                {viewingStatus.user_name?.charAt(0).toUpperCase() || "?"}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-white text-sm font-semibold truncate">
-                {viewingStatus.user_name}
-              </p>
-              <p className="text-white/70 text-[11px]">
-                {timeLeft(viewingStatus.created_at)}
-              </p>
-            </div>
-          </div>
-          <button
-            className="absolute top-5 right-4 z-10 w-9 h-9 flex items-center justify-center"
-            onClick={() => setViewingStatus(null)}
-          >
-            <X className="w-6 h-6 text-white" />
-          </button>
-          {viewingStatus.media_url ? (
-            <img
-              src={viewingStatus.media_url}
-              className="flex-1 object-contain"
-              alt="status"
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <div
-              className="flex-1 flex items-center justify-center p-8"
-              style={{ background: viewingStatus.background_color }}
-            >
-              <p className="text-white text-2xl font-semibold text-center leading-relaxed">
-                {viewingStatus.content}
-              </p>
-            </div>
-          )}
-          {viewingStatus.media_url && viewingStatus.content && (
-            <div className="absolute bottom-10 left-0 right-0 px-6">
-              <p className="text-white text-lg font-medium text-center drop-shadow-lg">
-                {viewingStatus.content}
-              </p>
-            </div>
-          )}
-        </div>
+      {/* WhatsApp-style Viewer */}
+      {viewerStatuses && (
+        <StatusViewer
+          statuses={viewerStatuses}
+          startIndex={viewerStart}
+          myUid={user?.uid ?? ""}
+          onClose={() => {
+            setViewerStatuses(null);
+            refresh();
+          }}
+        />
       )}
     </div>
   );
