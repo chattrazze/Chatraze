@@ -89,6 +89,6 @@ if ("serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    {supabaseMisconfigured ? <MissingConfig /> : <App />}
+    {supabaseMisconfigured && import.meta.env.PROD ? <MissingConfig /> : <App />}
   </ErrorBoundary>,
 );

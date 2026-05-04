@@ -1,0 +1,54 @@
+2026-05-04T00:58:38.345214Z	Cloning repository...
+2026-05-04T00:58:39.572277Z	From https://github.com/chattrazze/Chatraze
+2026-05-04T00:58:39.572937Z	 * branch            fbcf96d9e1fcf8f55110e3d96e1228cc8ce2311e -> FETCH_HEAD
+2026-05-04T00:58:39.573022Z	
+2026-05-04T00:58:39.616507Z	HEAD is now at fbcf96d fix: remove _redirects (infinite loop on Cloudflare) — 404.html handles SPA routing
+2026-05-04T00:58:39.616951Z	
+2026-05-04T00:58:39.700971Z	
+2026-05-04T00:58:39.701809Z	Using v2 root directory strategy
+2026-05-04T00:58:39.722685Z	Success: Finished cloning repository files
+2026-05-04T00:58:41.929172Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-04T00:58:41.929763Z	
+2026-05-04T00:58:41.93056Z	Found wrangler.toml file. Reading build configuration...
+2026-05-04T00:58:41.937796Z	pages_build_output_dir: dist/public
+2026-05-04T00:58:41.938095Z	Build environment variables: (none found)
+2026-05-04T00:58:43.060744Z	Successfully read the Wrangler configuration file.
+2026-05-04T00:58:43.399788Z	Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-05-04T00:58:43.40028Z	Installing project dependencies: npm install --progress=false
+2026-05-04T00:59:16.906019Z	
+2026-05-04T00:59:16.907263Z	added 250 packages, and audited 251 packages in 33s
+2026-05-04T00:59:16.90745Z	
+2026-05-04T00:59:16.907648Z	22 packages are looking for funding
+2026-05-04T00:59:16.907787Z	  run `npm fund` for details
+2026-05-04T00:59:16.907865Z	
+2026-05-04T00:59:16.907946Z	found 0 vulnerabilities
+2026-05-04T00:59:16.996294Z	Executing user command: pnpm --filter @workspace/chatrazze run build
+2026-05-04T00:59:17.929593Z	
+2026-05-04T00:59:17.929914Z	> @workspace/chatrazze@0.0.0 build /opt/buildhome/repo
+2026-05-04T00:59:17.929974Z	> vite build --config vite.config.ts
+2026-05-04T00:59:17.930015Z	
+2026-05-04T00:59:19.352904Z	[36mvite v6.4.2 [32mbuilding for production...[36m[39m
+2026-05-04T00:59:19.461722Z	transforming...
+2026-05-04T00:59:23.449564Z	[32m✓[39m 1674 modules transformed.
+2026-05-04T00:59:23.829443Z	rendering chunks...
+2026-05-04T00:59:23.844926Z	computing gzip size...
+2026-05-04T00:59:23.874622Z	[2mdist/public/[22m[32mindex.html                 [39m[1m[2m  1.42 kB[22m[1m[22m[2m │ gzip:   0.61 kB[22m
+2026-05-04T00:59:23.876673Z	[2mdist/public/[22m[2massets/[22m[35mindex-Cv3FRRC-.css  [39m[1m[2m136.32 kB[22m[1m[22m[2m │ gzip:  20.81 kB[22m
+2026-05-04T00:59:23.877235Z	[2mdist/public/[22m[2massets/[22m[36mindex-CN99QNkI.js   [39m[1m[2m434.92 kB[22m[1m[22m[2m │ gzip: 121.36 kB[22m
+2026-05-04T00:59:23.877343Z	[32m✓ built in 4.47s[39m
+2026-05-04T00:59:24.009785Z	Finished
+2026-05-04T00:59:24.893337Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-04T00:59:24.893836Z	
+2026-05-04T00:59:24.894014Z	Found wrangler.toml file. Reading build configuration...
+2026-05-04T00:59:24.900207Z	pages_build_output_dir: dist/public
+2026-05-04T00:59:24.900525Z	Build environment variables: (none found)
+2026-05-04T00:59:26.021881Z	Successfully read the Wrangler configuration file.
+2026-05-04T00:59:26.023141Z	Note: No functions dir at /functions found. Skipping.
+2026-05-04T00:59:26.023282Z	Validating asset output directory
+2026-05-04T00:59:28.600146Z	Deploying your site to Cloudflare's global network...
+2026-05-04T00:59:30.856637Z	Uploading... (13/13)
+2026-05-04T00:59:30.858154Z	✨ Success! Uploaded 0 files (13 already uploaded) (0.20 sec)
+2026-05-04T00:59:30.858331Z	
+2026-05-04T00:59:31.232938Z	✨ Upload complete!
+2026-05-04T00:59:33.954152Z	Success: Assets published!
+2026-05-04T00:59:36.087402Z	Success: Your site was deployed!
