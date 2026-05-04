@@ -53,7 +53,7 @@ import {
   X,
 } from "lucide-react";
 
-/* ─── localStorage helpers ──────────────────────────────────────────────── */
+// localStorage helpers
 
 function getMutedUntil(chatId: string): number | null {
   try {
@@ -119,8 +119,6 @@ function useDebounced<T>(val: T, ms: number): T {
   return d;
 }
 
-/* ─── Types ─────────────────────────────────────────────────────────────── */
-
 interface Props {
   chatId: string;
   group: AppUser;
@@ -130,9 +128,6 @@ interface Props {
   onInitiateCall?: (peerUid: string, peerName: string, kind: "voice" | "video") => void;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   GroupProfilePage
-═══════════════════════════════════════════════════════════════════════════ */
 export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemberAdded, onInitiateCall }: Props) {
   const { user } = useAuth();
   const toast = useToast();
@@ -213,7 +208,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   /* member search */
   const [memberSearchQ, setMemberSearchQ] = useState("");
 
-  /* ── init ─────────────────────────────────────────────── */
+  // init
   useEffect(() => {
     getChatStats(chatId).then(setStats).catch((e) => console.error("[GroupProfile] stats:", e));
     getSharedMedia(chatId).then(setMedia).catch((e) => console.error("[GroupProfile] media:", e));
@@ -250,7 +245,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     [members, memberSearchQ]
   );
 
-  /* ── group photo ──────────────────────────────────────── */
+  // group photo
   async function handleGroupPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -269,7 +264,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setSavingGroup(false); }
   }
 
-  /* ── group name ───────────────────────────────────────── */
+  // group name
   async function saveGroupName() {
     if (!editName.trim()) return;
     setSavingGroup(true);
@@ -281,7 +276,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setSavingGroup(false); }
   }
 
-  /* ── group description ────────────────────────────────── */
+  // group description
   async function saveGroupDesc() {
     setSavingGroup(true);
     try {
@@ -292,7 +287,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setSavingGroup(false); }
   }
 
-  /* ── leave group ──────────────────────────────────────── */
+  // leave group
   async function handleLeave() {
     if (!user) return;
     setLeaving(true);
@@ -304,7 +299,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setLeaving(false); }
   }
 
-  /* ── clear chat (admin only, verified server-side) ───────*/
+  // clear chat (admin only)
   async function handleClearChat() {
     if (!user) return;
     try {
@@ -314,7 +309,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     } catch { toast.show(t("couldNotSaveProfile")); }
   }
 
-  /* ── export chat ──────────────────────────────────────── */
+  // export chat
   async function handleExport() {
     setLoadingSearch(true);
     try {
@@ -325,7 +320,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setLoadingSearch(false); }
   }
 
-  /* ── mute ─────────────────────────────────────────────── */
+  // mute
   function handleMute(hours: number | "always") {
     const until = hours === "always" ? Date.now() + 1e12 : Date.now() + hours * 3600 * 1000;
     saveMutedUntil(chatId, until);
@@ -338,7 +333,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     toast.show(t("unmute"));
   }
 
-  /* ── disappearing messages (localStorage + DB) ────────── */
+  // disappearing messages
   async function handleDisappear(secs: number) {
     saveDisappearTimer(chatId, secs);
     setDisappearSecs(secs);
@@ -346,7 +341,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     await updateGroupSelfDestruct(chatId, user!.uid, secs).catch((e) => console.error("[GroupProfile] selfDestruct update:", e));
   }
 
-  /* ── lock chat PIN ────────────────────────────────────── */
+  // lock chat PIN
   function handlePINDone() {
     if (showPINModal === "setup") {
       if (pinStep === 1) {
@@ -376,7 +371,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     setPinA(""); setPinB(""); setPinStep(1); setPinError("");
   }
 
-  /* ── search in chat ───────────────────────────────────── */
+  // search in chat
   useEffect(() => {
     if (!showSearch) return;
     setLoadingSearch(true);
@@ -402,7 +397,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
       .catch(() => {});
   }, [showInvite, chatId]);
 
-  /* ── add member ───────────────────────────────────────── */
+  // add member
   function handleMemberAdded(newUid: string, newUser: AppUser) {
     const next = [...memberIds, newUid];
     setMemberIds(next);
@@ -410,7 +405,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     onMemberAdded?.(next);
   }
 
-  /* ── favorite (DB-backed via starred_chats) ───────────── */
+  // favorite (DB-backed)
   async function handleFavorite() {
     if (!user) return;
     try {
@@ -422,7 +417,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     }
   }
 
-  /* ── copy invite link ─────────────────────────────────── */
+  // copy invite link
   async function copyInviteLink() {
     try {
       await navigator.clipboard.writeText(inviteUrl);
@@ -431,8 +426,6 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
       toast.show(inviteUrl);
     }
   }
-
-  /* ─────────────────────────────────────────────────────── */
 
   const disappearLabel =
     disappearSecs === 0 ? t("disappearOff") :
@@ -827,7 +820,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
         </div>
       </div>
 
-      {/* ════════════════ MODALS & OVERLAYS ════════════════ */}
+      {/* Modals & Overlays */}
 
       {/* ── Bottom Action Sheet ── */}
       {showActionSheet && (
@@ -1070,7 +1063,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   );
 }
 
-/* ─── Helper UI components ───────────────────────────────────────────────── */
+// Helper UI components
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
@@ -1139,7 +1132,7 @@ function SettingRow({
   );
 }
 
-/* ─── AddMemberSheet ─────────────────────────────────────────────────────── */
+// AddMemberSheet
 function AddMemberSheet({
   chatId, currentMemberIds, currentUid, onClose, onAdded,
 }: {

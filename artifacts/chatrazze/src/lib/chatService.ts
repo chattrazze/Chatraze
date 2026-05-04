@@ -121,6 +121,7 @@ export async function createGroupChat(
     created_at: now,
     last_message_at: now,
     created_by: adminId,
+    invite_token: crypto.randomUUID(),
   });
 
   if (error) throw error;

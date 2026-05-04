@@ -110,11 +110,38 @@ CREATE POLICY "Users can insert chats" ON chats
   FOR INSERT
   WITH CHECK (auth.uid()::text = ANY(members));
 
--- UPDATE (messaging metadata): any member can update unread/typing/last_message fields
-DROP POLICY IF EXISTS "Members can update chat metadata"   ON chats;
+-- UPDATE: any member can update messaging metadata (unread, typing, last_message*)
+DROP POLICY IF EXISTS "Members can update chat metadata" ON chats;
 CREATE POLICY "Members can update chat metadata" ON chats
   FOR UPDATE
   USING (auth.uid()::text = ANY(members));
+
+-- Trigger: block non-admin mutation of admin-protected fields at DB level
+CREATE OR REPLACE FUNCTION chats_admin_field_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF (
+    NEW.name                IS DISTINCT FROM OLD.name                OR
+    NEW.description         IS DISTINCT FROM OLD.description         OR
+    NEW.avatar_url          IS DISTINCT FROM OLD.avatar_url          OR
+    NEW.self_destruct_timer IS DISTINCT FROM OLD.self_destruct_timer OR
+    NEW.invite_token        IS DISTINCT FROM OLD.invite_token
+  ) THEN
+    IF OLD.created_by IS NULL OR OLD.created_by IS DISTINCT FROM auth.uid()::text THEN
+      RAISE EXCEPTION 'Only the group admin can update group settings';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS chats_admin_field_guard_trigger ON chats;
+CREATE TRIGGER chats_admin_field_guard_trigger
+  BEFORE UPDATE ON chats
+  FOR EACH ROW
+  EXECUTE FUNCTION chats_admin_field_guard();
 
 -- ============================================================
 -- ADMIN-ONLY GROUP SETTINGS (SECURITY DEFINER RPC)
