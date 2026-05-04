@@ -1163,8 +1163,19 @@ function AudioRecorder({
           {bars.map((h, i) => (
             <div
               key={i}
-              className={`flex-1 rounded-full transition-none ${mode === "paused" ? "bg-muted-foreground/40" : "bg-primary"}`}
-              style={{ height: `${h}px`, maxHeight: "24px", minHeight: "2px", opacity: 0.55 + (h / 36) * 0.45 }}
+              className="flex-1 rounded-full transition-none"
+              style={{
+                height: `${h}px`,
+                maxHeight: "24px",
+                minHeight: "2px",
+                background: mode === "paused"
+                  ? "rgba(255,255,255,0.35)"
+                  : i % 3 === 0
+                    ? `rgba(255,122,26,${0.6 + (h / 36) * 0.4})`
+                    : i % 3 === 1
+                      ? `rgba(255,255,255,${0.5 + (h / 36) * 0.5})`
+                      : `rgba(255,78,0,${0.55 + (h / 36) * 0.45})`,
+              }}
             />
           ))}
         </div>
