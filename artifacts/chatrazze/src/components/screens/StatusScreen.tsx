@@ -539,21 +539,310 @@ function PhotoComposer({
   );
 }
 
+/* ── Drawing Composer ────────────────────────────────────────────────────── */
+
+const DRAW_COLORS = [
+  "#FFFFFF","#FF7A1A","#FF4E00","#FBBF24",
+  "#34D399","#60A5FA","#A78BFA","#F472B6",
+  "#000000","#374151","#DC2626","#065F46",
+];
+const BRUSH_SIZES = [3, 6, 12, 20];
+
+function DrawingComposer({
+  onSave,
+  onClose,
+  saving,
+}: {
+  onSave: (file: File) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [color, setColor] = useState("#FFFFFF");
+  const [brushIdx, setBrushIdx] = useState(1);
+  const [eraser, setEraser] = useState(false);
+  const isDrawing = useRef(false);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  function getPos(e: React.TouchEvent | React.MouseEvent): { x: number; y: number } {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ("touches" in e) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      };
+    }
+    return {
+      x: ((e as React.MouseEvent).clientX - rect.left) * scaleX,
+      y: ((e as React.MouseEvent).clientY - rect.top) * scaleY,
+    };
+  }
+
+  function startDraw(e: React.TouchEvent | React.MouseEvent) {
+    e.preventDefault();
+    isDrawing.current = true;
+    lastPos.current = getPos(e);
+  }
+
+  function doDraw(e: React.TouchEvent | React.MouseEvent) {
+    e.preventDefault();
+    if (!isDrawing.current || !lastPos.current) return;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = eraser ? "#1a1a2e" : color;
+    ctx.lineWidth = BRUSH_SIZES[brushIdx];
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    lastPos.current = pos;
+  }
+
+  function endDraw(e: React.TouchEvent | React.MouseEvent) {
+    e.preventDefault();
+    isDrawing.current = false;
+    lastPos.current = null;
+  }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function share() {
+    const canvas = canvasRef.current!;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      onSave(new File([blob], `drawing_${Date.now()}.jpg`, { type: "image/jpeg" }));
+    }, "image/jpeg", 0.92);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[55] flex flex-col bg-[#1a1a2e] select-none">
+      {/* Top toolbar */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3 shrink-0"
+        style={{ background: "rgba(0,0,0,0.5)" }}>
+        <button onClick={onClose}
+          className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition">
+          <X className="w-5 h-5 text-white" />
+        </button>
+        <div className="flex-1 flex gap-1.5 overflow-x-auto scrollbar-none">
+          {DRAW_COLORS.map((c) => (
+            <button key={c} onClick={() => { setColor(c); setEraser(false); }}
+              className="shrink-0 rounded-full transition active:scale-90"
+              style={{
+                width: 28, height: 28, background: c,
+                border: c === color && !eraser ? "2.5px solid white" : "2px solid rgba(255,255,255,0.2)",
+                transform: c === color && !eraser ? "scale(1.15)" : "scale(1)",
+              }} />
+          ))}
+        </div>
+        <button
+          onClick={share}
+          disabled={saving}
+          className="px-4 py-2 rounded-full bg-[#FF7A1A] text-white text-sm font-bold active:scale-95 transition disabled:opacity-50">
+          {saving ? "…" : "مشاركة"}
+        </button>
+      </div>
+
+      {/* Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="flex-1 w-full cursor-crosshair touch-none"
+        onMouseDown={startDraw}
+        onMouseMove={doDraw}
+        onMouseUp={endDraw}
+        onMouseLeave={endDraw}
+        onTouchStart={startDraw}
+        onTouchMove={doDraw}
+        onTouchEnd={endDraw}
+      />
+
+      {/* Bottom toolbar */}
+      <div className="flex items-center justify-between px-6 py-3 shrink-0"
+        style={{ background: "rgba(0,0,0,0.5)" }}>
+        {/* Brush sizes */}
+        <div className="flex items-center gap-3">
+          {BRUSH_SIZES.map((s, i) => (
+            <button key={s} onClick={() => { setBrushIdx(i); setEraser(false); }}
+              className="flex items-center justify-center active:scale-90 transition"
+              style={{ width: 32, height: 32 }}>
+              <div className="rounded-full transition-all"
+                style={{
+                  width: Math.max(s, 6), height: Math.max(s, 6),
+                  background: i === brushIdx && !eraser ? color : "rgba(255,255,255,0.4)",
+                  boxShadow: i === brushIdx && !eraser ? `0 0 6px ${color}` : "none",
+                }} />
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Eraser */}
+          <button onClick={() => setEraser((v) => !v)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition active:scale-90 ${eraser ? "bg-white text-black" : "bg-white/10 text-white"}`}>
+            ممحاة
+          </button>
+          {/* Clear */}
+          <button onClick={clearCanvas}
+            className="px-3 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold transition active:scale-90">
+            مسح
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Music Composer ───────────────────────────────────────────────────────── */
+
+function MusicComposer({
+  file,
+  onSave,
+  onClose,
+  saving,
+}: {
+  file: File;
+  onSave: (songName: string) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const songName = file.name.replace(/\.[^/.]+$/, "");
+  const [editName, setEditName] = useState(songName);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioUrl] = useState(() => URL.createObjectURL(file));
+
+  useEffect(() => {
+    audioRef.current = new Audio(audioUrl);
+    audioRef.current.loop = true;
+    return () => {
+      audioRef.current?.pause();
+      URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
+
+  function togglePlay() {
+    if (!audioRef.current) return;
+    if (playing) { audioRef.current.pause(); setPlaying(false); }
+    else { audioRef.current.play(); setPlaying(true); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[55] flex flex-col select-none"
+      style={{ background: "linear-gradient(135deg, #4c1d95, #1e1b4b, #312e81)" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+        <button onClick={() => { audioRef.current?.pause(); onClose(); }}
+          className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center active:scale-90 transition">
+          <X className="w-5 h-5 text-white" />
+        </button>
+        <button
+          onClick={() => { audioRef.current?.pause(); onSave(editName.trim() || songName); }}
+          disabled={saving}
+          className="px-5 py-2 rounded-full bg-white text-sm font-bold disabled:opacity-50 active:scale-95 transition"
+          style={{ color: "#4c1d95" }}>
+          {saving ? "…" : "مشاركة"}
+        </button>
+      </div>
+
+      {/* Center content */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-8">
+        {/* Animated music icon */}
+        <div className="relative">
+          <div className="w-32 h-32 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.1)", boxShadow: playing ? "0 0 40px rgba(167,139,250,0.5)" : "none" }}>
+            <Music2 className="w-16 h-16 text-white" />
+          </div>
+          {/* Pulse rings when playing */}
+          {playing && (
+            <>
+              <div className="absolute inset-0 rounded-full animate-ping"
+                style={{ background: "rgba(167,139,250,0.2)" }} />
+              <div className="absolute -inset-4 rounded-full animate-pulse"
+                style={{ background: "rgba(167,139,250,0.1)" }} />
+            </>
+          )}
+        </div>
+
+        {/* Equalizer bars */}
+        <div className="flex items-end gap-1 h-10">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i}
+              className="w-1.5 rounded-full"
+              style={{
+                background: "rgba(167,139,250,0.8)",
+                height: playing ? `${20 + Math.sin(i * 0.8) * 16}px` : "4px",
+                transition: "height 0.3s ease",
+                animationDelay: `${i * 0.07}s`,
+              }} />
+          ))}
+        </div>
+
+        {/* Song name (editable) */}
+        <div className="w-full">
+          <p className="text-white/50 text-xs text-center mb-2">اسم الأغنية</p>
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value.slice(0, 60))}
+            className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-3 text-white text-center text-base font-semibold outline-none focus:border-purple-400"
+            placeholder="اسم الأغنية…"
+          />
+        </div>
+
+        {/* Play/Pause */}
+        <button onClick={togglePlay}
+          className="w-16 h-16 rounded-full flex items-center justify-center active:scale-90 transition"
+          style={{ background: "rgba(255,255,255,0.15)" }}>
+          {playing
+            ? <div className="flex gap-1"><div className="w-1.5 h-6 bg-white rounded-full" /><div className="w-1.5 h-6 bg-white rounded-full" /></div>
+            : <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1" />}
+        </button>
+      </div>
+
+      <div className="pb-8 text-center">
+        <p className="text-white/30 text-xs">سيظهر اسم الأغنية في الستاتس</p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Creation Menu Sheet ─────────────────────────────────────────────────── */
 
 function CreationSheet({
   onText,
   onPhoto,
+  onDraw,
+  onMusic,
   onClose,
   fileRef,
+  musicRef,
 }: {
   onText: () => void;
   onPhoto: (file: File) => void;
+  onDraw: () => void;
+  onMusic: (file: File) => void;
   onClose: () => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
+  musicRef: React.RefObject<HTMLInputElement | null>;
 }) {
-  const { show } = useToast();
-
   const options = [
     {
       icon: <Type className="w-6 h-6" />,
@@ -567,21 +856,21 @@ function CreationSheet({
       label: "موسيقى",
       color: "#a78bfa",
       bg: "rgba(167,139,250,0.15)",
-      action: () => { show("قريباً 🎵"); onClose(); },
+      action: () => musicRef.current?.click(),
     },
     {
       icon: <LayoutGrid className="w-6 h-6" />,
-      label: "تخطيط",
-      color: "#34d399",
-      bg: "rgba(52,211,153,0.15)",
-      action: () => { show("قريباً 📐"); onClose(); },
-    },
-    {
-      icon: <Pencil className="w-6 h-6" />,
       label: "رسم",
       color: "#f472b6",
       bg: "rgba(244,114,182,0.15)",
-      action: () => { show("قريباً 🖌️"); onClose(); },
+      action: onDraw,
+    },
+    {
+      icon: <Pencil className="w-6 h-6" />,
+      label: "تخطيط",
+      color: "#34d399",
+      bg: "rgba(52,211,153,0.15)",
+      action: onDraw,
     },
   ];
 
@@ -654,6 +943,17 @@ function CreationSheet({
           if (file) onPhoto(file);
         }}
       />
+      <input
+        ref={musicRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) { onMusic(file); }
+        }}
+      />
     </>
   );
 }
@@ -664,7 +964,9 @@ type ComposerState =
   | { kind: "none" }
   | { kind: "menu" }
   | { kind: "text"; initialText?: string; bgColor?: string }
-  | { kind: "photo"; file: File };
+  | { kind: "photo"; file: File }
+  | { kind: "draw" }
+  | { kind: "music"; file: File };
 
 export default function StatusScreen({
   onGoToChats,
@@ -684,7 +986,8 @@ export default function StatusScreen({
   const [viewerStatuses, setViewerStatuses] = useState<UserStatus[] | null>(null);
   const [viewerStart, setViewerStart]       = useState(0);
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef  = useRef<HTMLInputElement>(null);
+  const musicRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
     if (!user) return;
@@ -744,6 +1047,30 @@ export default function StatusScreen({
         content: caption.trim() || undefined,
         media_url: mediaUrl,
         background_color: "#000000",
+      });
+      if (!result) throw new Error("Failed to save status");
+      setMyStatus(result);
+      setComposer({ kind: "none" });
+      show(t("statusPosted"));
+      refresh();
+    } catch (err) {
+      show(`${t("uploadFailed")}: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  async function saveMusicStatus(songName: string) {
+    if (!user || !songName.trim()) return;
+    setPosting(true);
+    try {
+      const result = await upsertStatus({
+        user_id: user.uid,
+        user_name: user.displayName || user.email || "Anonymous",
+        user_avatar: user.photoURL || undefined,
+        type: "text",
+        content: `🎵 ${songName.trim()}`,
+        background_color: "linear-gradient(135deg, #4c1d95, #1e1b4b)",
       });
       if (!result) throw new Error("Failed to save status");
       setMyStatus(result);
@@ -970,8 +1297,11 @@ export default function StatusScreen({
         <CreationSheet
           onText={() => setComposer({ kind: "text" })}
           onPhoto={(file) => setComposer({ kind: "photo", file })}
+          onDraw={() => setComposer({ kind: "draw" })}
+          onMusic={(file) => setComposer({ kind: "music", file })}
           onClose={() => setComposer({ kind: "none" })}
           fileRef={fileRef}
+          musicRef={musicRef}
         />
       )}
 
@@ -990,6 +1320,25 @@ export default function StatusScreen({
         <PhotoComposer
           file={composer.file}
           onSave={(caption) => savePhotoStatus(composer.file, caption)}
+          onClose={() => setComposer({ kind: "none" })}
+          saving={posting}
+        />
+      )}
+
+      {/* ── Drawing Composer ── */}
+      {composer.kind === "draw" && (
+        <DrawingComposer
+          onSave={(file) => { setComposer({ kind: "photo", file }); }}
+          onClose={() => setComposer({ kind: "none" })}
+          saving={posting}
+        />
+      )}
+
+      {/* ── Music Composer ── */}
+      {composer.kind === "music" && (
+        <MusicComposer
+          file={composer.file}
+          onSave={saveMusicStatus}
           onClose={() => setComposer({ kind: "none" })}
           saving={posting}
         />
