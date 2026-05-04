@@ -273,7 +273,7 @@ export async function sendMessage(
     ? new Date(Date.now() + timerSecs * 1000).toISOString()
     : null;
 
-  const { data: msgData, error: msgErr } = await supabase.from("messages").insert({
+  const baseRow = {
     chat_id: chatId,
     sender_id: senderId,
     type: payload.type,
@@ -284,10 +284,24 @@ export async function sendMessage(
     media_size: payload.mediaSize ?? 0,
     duration: payload.duration ?? 0,
     created_at: new Date().toISOString(),
-    expires_at: expiresAt,
     read_by: [senderId],
     reactions: {},
-  }).select("id").single();
+  };
+
+  // Try with expires_at first; fall back without it if column isn't migrated yet
+  let msgData: { id: string } | null = null;
+  let msgErr: { message?: string } | null = null;
+
+  ({ data: msgData, error: msgErr } = await supabase.from("messages")
+    .insert({ ...baseRow, expires_at: expiresAt })
+    .select("id").single());
+
+  if (msgErr && msgErr.message?.includes("expires_at")) {
+    ({ data: msgData, error: msgErr } = await supabase.from("messages")
+      .insert(baseRow)
+      .select("id").single());
+  }
+
   if (msgErr) throw msgErr;
   const newId = (msgData as { id: string }).id;
 

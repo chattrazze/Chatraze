@@ -261,7 +261,7 @@ export default function Sidebar({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-white/[0.10]">
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
         {filtered.length === 0 && (
           <div className="p-8 text-sm text-muted-foreground text-center">
             {search || filter !== "all"
@@ -292,10 +292,10 @@ export default function Sidebar({
           return (
             <div
               key={c.id}
-              className={`group relative w-full flex items-stretch border-l-2 transition ${
+              className={`group relative w-full flex items-stretch border-l-2 border-b border-b-white/10 transition ${
                 active
-                  ? "bg-white/5 border-primary"
-                  : "border-transparent hover:bg-white/5"
+                  ? "bg-white/5 border-l-primary"
+                  : "border-l-transparent hover:bg-white/5"
               }`}
             >
               <button

@@ -936,27 +936,45 @@ function AudioRecorder({
   onRecorded: (blob: Blob) => void | Promise<void>;
   t: (key: string) => string;
 }) {
+  const BAR_COUNT = 28;
   const [recording, setRecording] = useState(false);
   const [seconds,   setSeconds]   = useState(0);
-  const [bars, setBars] = useState<number[]>(Array(12).fill(3));
-  const recRef      = useRef<MediaRecorder | null>(null);
-  const chunksRef   = useRef<Blob[]>([]);
-  const timerRef    = useRef<number | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const animRef     = useRef<number | null>(null);
+  const [bars, setBars] = useState<number[]>(Array(BAR_COUNT).fill(4));
+  const recRef         = useRef<MediaRecorder | null>(null);
+  const chunksRef      = useRef<Blob[]>([]);
+  const timerRef       = useRef<number | null>(null);
+  const analyserRef    = useRef<AnalyserNode | null>(null);
+  const audioCtxRef    = useRef<AudioContext | null>(null);
+  const animRef        = useRef<number | null>(null);
+  const hasAnalyserRef = useRef(false);
+  const phaseRef       = useRef(0);
 
   function animateBars() {
-    if (!analyserRef.current) return;
-    const data = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(data);
-    const count = 12;
-    const step = Math.max(1, Math.floor(data.length / count));
-    const newBars = Array.from({ length: count }, (_, i) => {
-      const val = data[Math.min(i * step, data.length - 1)] / 255;
-      return Math.max(3, Math.round(val * 28));
-    });
-    setBars(newBars);
+    if (hasAnalyserRef.current && analyserRef.current) {
+      // Real frequency data from microphone
+      const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(data);
+      const step = Math.max(1, Math.floor(data.length / BAR_COUNT));
+      setBars(
+        Array.from({ length: BAR_COUNT }, (_, i) => {
+          const raw = data[Math.min(i * step, data.length - 1)] / 255;
+          return Math.max(3, Math.round(raw * 32));
+        }),
+      );
+    } else {
+      // Fallback: smooth pseudo-random wave animation
+      phaseRef.current += 0.18;
+      const p = phaseRef.current;
+      setBars(
+        Array.from({ length: BAR_COUNT }, (_, i) => {
+          const wave =
+            Math.sin(p + i * 0.45) * 0.4 +
+            Math.sin(p * 1.3 + i * 0.7) * 0.35 +
+            Math.sin(p * 0.7 + i * 0.25) * 0.25;
+          return Math.max(3, Math.round(((wave + 1) / 2) * 28 + 4));
+        }),
+      );
+    }
     animRef.current = requestAnimationFrame(animateBars);
   }
 
@@ -965,15 +983,17 @@ function AudioRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      hasAnalyserRef.current = false;
       try {
         const ctx = new AudioContext();
         const analyser = ctx.createAnalyser();
-        analyser.fftSize = 64;
+        analyser.fftSize = 128;
         ctx.createMediaStreamSource(stream).connect(analyser);
         audioCtxRef.current = ctx;
         analyserRef.current = analyser;
-        animRef.current = requestAnimationFrame(animateBars);
-      } catch { /* waveform optional */ }
+        hasAnalyserRef.current = true;
+      } catch { /* fallback to animated wave */ }
+      animRef.current = requestAnimationFrame(animateBars);
 
       const candidates = ["audio/mp4","audio/aac","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
       const mimeType = candidates.find(
@@ -993,7 +1013,8 @@ function AudioRecorder({
         setSeconds(0);
         if (animRef.current) cancelAnimationFrame(animRef.current);
         audioCtxRef.current?.close().catch(() => {});
-        setBars(Array(12).fill(3));
+        hasAnalyserRef.current = false;
+        setBars(Array(BAR_COUNT).fill(4));
       };
       rec.start(250);
       setRecording(true);
@@ -1015,23 +1036,40 @@ function AudioRecorder({
 
   if (recording) {
     return (
-      <button
-        onClick={stop}
-        title={t("stopRecording")}
-        className="flex items-center gap-1.5 px-3 h-10 rounded-full bg-destructive text-white min-w-[130px] shrink-0"
-      >
-        <Square className="w-3 h-3 shrink-0" />
-        <div className="flex items-end gap-[2px] h-6">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        {/* Stop button */}
+        <button
+          onClick={stop}
+          title={t("stopRecording")}
+          className="w-9 h-9 rounded-full bg-destructive flex items-center justify-center shrink-0 active:scale-90 transition"
+        >
+          <Square className="w-3.5 h-3.5 text-white" />
+        </button>
+
+        {/* Timer */}
+        <span className="text-xs font-mono tabular-nums text-destructive font-semibold shrink-0 w-10">
+          {fmt(seconds)}
+        </span>
+
+        {/* Waveform bars — centered vertically */}
+        <div className="flex items-center gap-[2px] h-9 flex-1 overflow-hidden">
           {bars.map((h, i) => (
             <div
               key={i}
-              className="w-[3px] rounded-full bg-white/90 transition-all duration-75"
-              style={{ height: `${h}px` }}
+              className="flex-1 rounded-full bg-primary transition-none"
+              style={{
+                height: `${h}px`,
+                maxHeight: "32px",
+                minHeight: "3px",
+                opacity: 0.7 + (h / 36) * 0.3,
+              }}
             />
           ))}
         </div>
-        <span className="text-xs font-mono tabular-nums ml-0.5">{fmt(seconds)}</span>
-      </button>
+
+        {/* Mic icon pulsing */}
+        <span className="w-2 h-2 rounded-full bg-destructive shrink-0 animate-pulse" />
+      </div>
     );
   }
 
