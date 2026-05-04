@@ -213,12 +213,13 @@ CREATE POLICY "Users can delete own status" ON statuses
 -- ============================================================
 -- 7. EXTRA GROUP COLUMNS (safe to re-run)
 -- ============================================================
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS invite_token        TEXT    DEFAULT NULL;
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS self_destruct_timer INTEGER DEFAULT 0;
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS description         TEXT    DEFAULT NULL;
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS name                TEXT    DEFAULT NULL;
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS avatar_url          TEXT    DEFAULT NULL;
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by          TEXT    DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS invite_token        TEXT        DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS self_destruct_timer INTEGER     DEFAULT 0;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS description         TEXT        DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS name                TEXT        DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS avatar_url          TEXT        DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS created_by          TEXT        DEFAULT NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at          TIMESTAMPTZ DEFAULT NULL;
 
 -- ============================================================
 -- 8. STARRED CHATS TABLE

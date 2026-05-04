@@ -28,6 +28,7 @@ export interface MessageDoc {
   mediaSize?: number;
   duration?: number;
   createdAt?: string | null;
+  expiresAt?: string | null;
   readBy: string[];
   reactions?: Record<string, string>;
 }
@@ -61,9 +62,14 @@ function rowToMessage(row: Record<string, unknown>, chatId: string): MessageDoc 
     mediaSize: (row.media_size as number) ?? 0,
     duration: (row.duration as number) ?? 0,
     createdAt: (row.created_at as string) ?? null,
+    expiresAt: (row.expires_at as string) ?? null,
     readBy: (row.read_by as string[]) ?? [],
     reactions: (row.reactions as Record<string, string>) ?? {},
   };
+}
+
+function isExpired(m: MessageDoc): boolean {
+  return !!m.expiresAt && new Date(m.expiresAt).getTime() <= Date.now();
 }
 
 export async function createChat(userA: string, userB: string): Promise<string> {
@@ -149,7 +155,9 @@ export function listenToMessages(chatId: string, cb: (messages: MessageDoc[]) =>
       .eq("chat_id", chatId)
       .order("created_at", { ascending: true });
     if (error) { console.error("[chatService] listenToMessages fetch error:", error); return; }
-    const fresh = (data ?? []).map((r) => rowToMessage(r as Record<string, unknown>, chatId));
+    const fresh = (data ?? [])
+      .map((r) => rowToMessage(r as Record<string, unknown>, chatId))
+      .filter((m) => !isExpired(m));
     const tempMsgs = cache.filter((x) => x.id.startsWith("temp_"));
     const onlyTemps = tempMsgs.filter((t) => !fresh.some(
       (f) => f.senderId === t.senderId && f.type === t.type && f.text === t.text
@@ -167,11 +175,18 @@ export function listenToMessages(chatId: string, cb: (messages: MessageDoc[]) =>
     if (Date.now() - lastFetchAt > 8000) fetchAll();
   }, 4000);
 
+  const expiryInterval = window.setInterval(() => {
+    const before = cache.length;
+    cache = cache.filter((m) => !isExpired(m));
+    if (cache.length !== before) cb(cache);
+  }, 10000);
+
   const ch = supabase
     .channel(`messages:${chatId}`)
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
       lastFetchAt = Date.now();
       const m = rowToMessage(payload.new as Record<string, unknown>, chatId);
+      if (isExpired(m)) return;
       if (cache.find((x) => x.id === m.id)) return;
       const tempIdx = cache.findIndex(
         (x) =>
@@ -190,7 +205,11 @@ export function listenToMessages(chatId: string, cb: (messages: MessageDoc[]) =>
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
       lastFetchAt = Date.now();
       const m = rowToMessage(payload.new as Record<string, unknown>, chatId);
-      cache = cache.map((x) => (x.id === m.id ? m : x));
+      if (isExpired(m)) {
+        cache = cache.filter((x) => x.id !== m.id);
+      } else {
+        cache = cache.map((x) => (x.id === m.id ? m : x));
+      }
       cb(cache);
     })
     .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages", filter: `chat_id=eq.${chatId}` }, (payload) => {
@@ -203,6 +222,7 @@ export function listenToMessages(chatId: string, cb: (messages: MessageDoc[]) =>
 
   return () => {
     window.clearInterval(pollInterval);
+    window.clearInterval(expiryInterval);
     supabase.removeChannel(ch);
   };
 }
@@ -238,6 +258,19 @@ export async function sendMessage(
     duration?: number;
   },
 ): Promise<string> {
+  const { data: chatData, error: chatFetchErr } = await supabase
+    .from("chats")
+    .select("members, unread, self_destruct_timer")
+    .eq("id", chatId)
+    .single();
+
+  if (chatFetchErr) console.error("[chatService] sendMessage chat fetch error:", chatFetchErr);
+
+  const timerSecs = (chatData?.self_destruct_timer as number) ?? 0;
+  const expiresAt = timerSecs > 0
+    ? new Date(Date.now() + timerSecs * 1000).toISOString()
+    : null;
+
   const { data: msgData, error: msgErr } = await supabase.from("messages").insert({
     chat_id: chatId,
     sender_id: senderId,
@@ -249,19 +282,12 @@ export async function sendMessage(
     media_size: payload.mediaSize ?? 0,
     duration: payload.duration ?? 0,
     created_at: new Date().toISOString(),
+    expires_at: expiresAt,
     read_by: [senderId],
     reactions: {},
   }).select("id").single();
   if (msgErr) throw msgErr;
   const newId = (msgData as { id: string }).id;
-
-  const { data: chatData, error: chatFetchErr } = await supabase
-    .from("chats")
-    .select("members, unread")
-    .eq("id", chatId)
-    .single();
-
-  if (chatFetchErr) console.error("[chatService] sendMessage chat fetch error:", chatFetchErr);
 
   const members: string[] = (chatData?.members as string[]) ?? [];
   const unread: Record<string, number> = { ...((chatData?.unread as Record<string, number>) ?? {}) };
@@ -467,7 +493,10 @@ export async function getMessages(chatId: string): Promise<MessageDoc[]> {
     .eq("chat_id", chatId)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((r) => rowToMessage(r as Record<string, unknown>, chatId));
+  const now = Date.now();
+  return (data ?? [])
+    .map((r) => rowToMessage(r as Record<string, unknown>, chatId))
+    .filter((m) => !m.expiresAt || new Date(m.expiresAt).getTime() > now);
 }
 
 export async function clearGroupMessages(chatId: string, adminUid: string): Promise<void> {

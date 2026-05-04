@@ -392,7 +392,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   useEffect(() => {
     if (!showInvite) return;
     getOrCreateInviteToken(chatId)
-      .then((token) => setInviteUrl(`${window.location.origin}${window.location.pathname}#join/${token}`))
+      .then((token) => setInviteUrl(`${window.location.origin}/join/${token}`))
       .catch(() => {});
   }, [showInvite, chatId]);
 
@@ -600,15 +600,19 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
             </div>
           </SettingRow>
 
-          {/* Disappearing messages */}
-          <SettingRow Icon={Trash2} label={t("disappearingMsgs")} value={disappearLabel} color="text-muted-foreground">
-            <div className="flex flex-col gap-1 py-1">
-              <ActionBtn label={t("disappearOff")} active={disappearSecs === 0} onClick={() => handleDisappear(0)} />
-              <ActionBtn label={t("disappear24h")} active={disappearSecs === 86400} onClick={() => handleDisappear(86400)} />
-              <ActionBtn label={t("disappear7d")} active={disappearSecs === 604800} onClick={() => handleDisappear(604800)} />
-              <ActionBtn label={t("disappear90d")} active={disappearSecs === 7776000} onClick={() => handleDisappear(7776000)} />
-            </div>
-          </SettingRow>
+          {/* Disappearing messages — admin sets timer; others see current value */}
+          {isAdmin ? (
+            <SettingRow Icon={Trash2} label={t("disappearingMsgs")} value={disappearLabel} color="text-muted-foreground">
+              <div className="flex flex-col gap-1 py-1">
+                <ActionBtn label={t("disappearOff")} active={disappearSecs === 0} onClick={() => handleDisappear(0)} />
+                <ActionBtn label={t("disappear24h")} active={disappearSecs === 86400} onClick={() => handleDisappear(86400)} />
+                <ActionBtn label={t("disappear7d")} active={disappearSecs === 604800} onClick={() => handleDisappear(604800)} />
+                <ActionBtn label={t("disappear90d")} active={disappearSecs === 7776000} onClick={() => handleDisappear(7776000)} />
+              </div>
+            </SettingRow>
+          ) : (
+            <SettingRow Icon={Trash2} label={t("disappearingMsgs")} value={disappearLabel} color="text-muted-foreground/50" />
+          )}
 
           {/* Lock chat */}
           <SettingRow
