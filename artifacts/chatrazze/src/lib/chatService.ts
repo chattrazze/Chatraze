@@ -120,6 +120,7 @@ export async function createGroupChat(
     typing: {},
     created_at: now,
     last_message_at: now,
+    created_by: adminId,
   });
 
   if (error) throw error;
@@ -481,7 +482,20 @@ export async function getGroupInfo(chatId: string): Promise<{ name: string | nul
   };
 }
 
-export async function updateGroupInfo(chatId: string, updates: { name?: string; avatar_url?: string; description?: string }) {
+export async function updateGroupInfo(
+  chatId: string,
+  adminUid: string,
+  updates: { name?: string; avatar_url?: string; description?: string },
+): Promise<void> {
+  const { data: chat, error: fetchErr } = await supabase
+    .from("chats")
+    .select("created_by")
+    .eq("id", chatId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if ((chat as Record<string, unknown>)?.created_by !== adminUid) {
+    throw new Error("Only the group admin can update group info.");
+  }
   const { error } = await supabase.from("chats").update(updates).eq("id", chatId);
   if (error) throw error;
 }
@@ -550,7 +564,16 @@ export async function getGroupSelfDestruct(chatId: string): Promise<number> {
   return (data as Record<string, unknown>)?.self_destruct_timer as number ?? 0;
 }
 
-export async function updateGroupSelfDestruct(chatId: string, secs: number): Promise<void> {
+export async function updateGroupSelfDestruct(chatId: string, adminUid: string, secs: number): Promise<void> {
+  const { data: chat, error: fetchErr } = await supabase
+    .from("chats")
+    .select("created_by")
+    .eq("id", chatId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if ((chat as Record<string, unknown>)?.created_by !== adminUid) {
+    throw new Error("Only the group admin can change the self-destruct timer.");
+  }
   const { error } = await supabase.from("chats").update({ self_destruct_timer: secs }).eq("id", chatId);
   if (error) throw error;
 }

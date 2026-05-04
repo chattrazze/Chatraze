@@ -57,16 +57,30 @@ import {
 
 function getMutedUntil(chatId: string): number | null {
   try {
-    const raw = localStorage.getItem(`chatrazze:mute:${chatId}`);
-    if (!raw) return null;
-    const until = parseInt(raw, 10);
-    if (Date.now() > until) { localStorage.removeItem(`chatrazze:mute:${chatId}`); return null; }
-    return until;
+    const prefix = `chatrazze:mute:${chatId}:`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(prefix)) {
+        const until = parseInt(k.slice(prefix.length), 10);
+        if (Date.now() < until) return until;
+        localStorage.removeItem(k);
+        return null;
+      }
+    }
+    return null;
   } catch { return null; }
 }
 function saveMutedUntil(chatId: string, until: number | null) {
-  if (until === null) localStorage.removeItem(`chatrazze:mute:${chatId}`);
-  else localStorage.setItem(`chatrazze:mute:${chatId}`, String(until));
+  try {
+    const prefix = `chatrazze:mute:${chatId}:`;
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(prefix)) toRemove.push(k);
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
+    if (until !== null) localStorage.setItem(`${prefix}${until}`, "1");
+  } catch { /* ignore */ }
 }
 function getDisappearTimer(chatId: string): number {
   try { return parseInt(localStorage.getItem(`chatrazze:disappear:${chatId}`) ?? "0", 10) || 0; }
@@ -248,7 +262,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
       const { data, error } = await supabase.storage.from("chat-media").upload(path, file, { cacheControl: "31536000", upsert: false });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("chat-media").getPublicUrl(data.path);
-      await updateGroupInfo(chatId, { avatar_url: urlData.publicUrl });
+      await updateGroupInfo(chatId, user!.uid, { avatar_url: urlData.publicUrl });
       setGroupAvatarUrl(urlData.publicUrl);
       toast.show(t("groupPhotoUpdated"));
     } catch { toast.show(t("couldNotUploadPhoto")); }
@@ -260,7 +274,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     if (!editName.trim()) return;
     setSavingGroup(true);
     try {
-      await updateGroupInfo(chatId, { name: editName.trim() });
+      await updateGroupInfo(chatId, user!.uid, { name: editName.trim() });
       toast.show(t("groupNameEdited"));
       setEditMode(false);
     } catch { toast.show(t("couldNotSaveProfile")); }
@@ -271,7 +285,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   async function saveGroupDesc() {
     setSavingGroup(true);
     try {
-      await updateGroupInfo(chatId, { description: editDesc.trim() });
+      await updateGroupInfo(chatId, user!.uid, { description: editDesc.trim() });
       setGroupDescription(editDesc.trim());
       setEditDescMode(false);
     } catch { toast.show(t("couldNotSaveProfile")); }
@@ -329,7 +343,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     saveDisappearTimer(chatId, secs);
     setDisappearSecs(secs);
     toast.show(secs === 0 ? t("disappearOff") : secs === 86400 ? t("disappear24h") : secs === 604800 ? t("disappear7d") : t("disappear90d"));
-    await updateGroupSelfDestruct(chatId, secs).catch(() => {});
+    await updateGroupSelfDestruct(chatId, user!.uid, secs).catch((e) => console.error("[GroupProfile] selfDestruct update:", e));
   }
 
   /* ── lock chat PIN ────────────────────────────────────── */
