@@ -1,0 +1,84 @@
+2026-05-04T03:39:43.893892Z	Cloning repository...
+2026-05-04T03:39:45.102118Z	From https://github.com/chattrazze/Chatraze
+2026-05-04T03:39:45.102592Z	 * branch            fe35c8b361423eeef892807b00caab1c60c78def -> FETCH_HEAD
+2026-05-04T03:39:45.102669Z	
+2026-05-04T03:39:45.225047Z	HEAD is now at fe35c8b Clarify configuration requirements for application deployment
+2026-05-04T03:39:45.225375Z	
+2026-05-04T03:39:45.280248Z	
+2026-05-04T03:39:45.280691Z	Using v2 root directory strategy
+2026-05-04T03:39:45.294616Z	Success: Finished cloning repository files
+2026-05-04T03:39:47.782597Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-04T03:39:47.78316Z	
+2026-05-04T03:39:48.88157Z	No Wrangler configuration file found. Continuing.
+2026-05-04T03:39:49.107408Z	Detected the following tools from environment: pnpm@10.11.1, nodejs@22.16.0
+2026-05-04T03:39:50.130465Z	Installing project dependencies: pnpm install
+2026-05-04T03:39:50.741042Z	Scope: all 9 workspace projects
+2026-05-04T03:39:50.823991Z	Lockfile is up to date, resolution step is skipped
+2026-05-04T03:39:50.86309Z	Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-05-04T03:39:50.970024Z	Packages: +496
+2026-05-04T03:39:50.970842Z	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-05-04T03:39:51.867556Z	Progress: resolved 496, reused 0, downloaded 135, added 134
+2026-05-04T03:39:52.871944Z	Progress: resolved 496, reused 0, downloaded 196, added 158
+2026-05-04T03:39:53.873725Z	Progress: resolved 496, reused 0, downloaded 336, added 210
+2026-05-04T03:39:54.87454Z	Progress: resolved 496, reused 0, downloaded 495, added 495
+2026-05-04T03:39:55.384005Z	Progress: resolved 496, reused 0, downloaded 496, added 496, done
+2026-05-04T03:39:55.585315Z	.../esbuild@0.27.3/node_modules/esbuild postinstall$ node install.js
+2026-05-04T03:39:55.667652Z	.../esbuild@0.27.3/node_modules/esbuild postinstall: Done
+2026-05-04T03:39:56.004496Z	
+2026-05-04T03:39:56.004773Z	devDependencies:
+2026-05-04T03:39:56.004851Z	+ prettier 3.8.1
+2026-05-04T03:39:56.004915Z	+ typescript 5.9.3
+2026-05-04T03:39:56.004977Z	
+2026-05-04T03:39:56.054347Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-04T03:39:56.071586Z	. preinstall: Done
+2026-05-04T03:39:56.252274Z	Done in 5.9s using pnpm v10.11.1
+2026-05-04T03:39:56.29389Z	Executing user command: pnpm install && pnpm run build
+2026-05-04T03:39:56.781061Z	Scope: all 9 workspace projects
+2026-05-04T03:39:56.863323Z	Lockfile is up to date, resolution step is skipped
+2026-05-04T03:39:56.922693Z	Already up to date
+2026-05-04T03:39:57.936255Z	
+2026-05-04T03:39:57.981571Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-04T03:39:57.993704Z	. preinstall: Done
+2026-05-04T03:39:58.121512Z	Done in 1.6s using pnpm v10.11.1
+2026-05-04T03:39:58.687864Z	
+2026-05-04T03:39:58.688171Z	> workspace@0.0.0 build /opt/buildhome/repo
+2026-05-04T03:39:58.688247Z	> pnpm run typecheck && pnpm -r --if-present run build
+2026-05-04T03:39:58.688348Z	
+2026-05-04T03:39:59.144183Z	
+2026-05-04T03:39:59.144996Z	> workspace@0.0.0 typecheck /opt/buildhome/repo
+2026-05-04T03:39:59.145103Z	> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+2026-05-04T03:39:59.145174Z	
+2026-05-04T03:39:59.588871Z	
+2026-05-04T03:39:59.589468Z	> workspace@0.0.0 typecheck:libs /opt/buildhome/repo
+2026-05-04T03:39:59.589588Z	> tsc --build
+2026-05-04T03:39:59.589661Z	
+2026-05-04T03:40:02.221927Z	Scope: 4 of 9 workspace projects
+2026-05-04T03:40:02.225273Z	artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-04T03:40:02.226097Z	artifacts/chatrazze typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-04T03:40:02.226549Z	artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-04T03:40:02.227112Z	scripts typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-04T03:40:04.115828Z	scripts typecheck: Done
+2026-05-04T03:40:04.496713Z	artifacts/api-server typecheck: Done
+2026-05-04T03:40:09.843652Z	artifacts/mockup-sandbox typecheck: Done
+2026-05-04T03:40:12.010549Z	artifacts/chatrazze typecheck: src/components/ChatView.tsx(8,3): error TS2305: Module '"@/lib/chatService"' has no exported member 'setTyping'.
+2026-05-04T03:40:12.012028Z	artifacts/chatrazze typecheck: src/components/ChatView.tsx(10,3): error TS2305: Module '"@/lib/chatService"' has no exported member 'uploadMedia'.
+2026-05-04T03:40:12.012278Z	artifacts/chatrazze typecheck: src/components/GroupProfilePage.tsx(4,10): error TS2305: Module '"@/lib/chatService"' has no exported member 'addMemberToGroup'.
+2026-05-04T03:40:12.01246Z	artifacts/chatrazze typecheck: src/components/GroupProfilePage.tsx(4,58): error TS2305: Module '"@/lib/chatService"' has no exported member 'leaveGroup'.
+2026-05-04T03:40:12.012575Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(59,50): error TS2345: Argument of type '"viewProfile"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.012861Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(108,63): error TS2345: Argument of type '"sharedMedia"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.013563Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(115,63): error TS2345: Argument of type '"sharedFiles"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.013886Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(124,18): error TS2345: Argument of type '"sharedMedia"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.014496Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(169,54): error TS2345: Argument of type '"clearChat"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.014663Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(179,40): error TS2345: Argument of type '"confirmBlock"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.014769Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(179,60): error TS2345: Argument of type '"confirmClear"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.015605Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(186,20): error TS2345: Argument of type '"cancel"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.015691Z	artifacts/chatrazze typecheck: src/components/PeerProfileView.tsx(198,20): error TS2345: Argument of type '"confirm"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 191 more ... | "addedToGroup"'.
+2026-05-04T03:40:12.064284Z	artifacts/chatrazze typecheck: Failed
+2026-05-04T03:40:12.082027Z	/opt/buildhome/repo/artifacts/chatrazze:
+2026-05-04T03:40:12.082266Z	 ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/chatrazze@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+2026-05-04T03:40:12.08236Z	Exit status 2
+2026-05-04T03:40:12.155767Z	 ELIFECYCLE  Command failed with exit code 2.
+2026-05-04T03:40:12.201285Z	 ELIFECYCLE  Command failed with exit code 2.
+2026-05-04T03:40:12.227386Z	Failed: Error while executing user command. Exited with error code: 2
+2026-05-04T03:40:12.235163Z	Failed: build command exited with code: 1
+2026-05-04T03:40:12.795712Z	Failed: error occurred while running build command

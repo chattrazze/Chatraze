@@ -335,6 +335,66 @@ export async function toggleReaction(
   await supabase.from("messages").update({ reactions }).eq("id", messageId);
 }
 
+export async function setTyping(chatId: string, uid: string, typing: boolean) {
+  const { data: chatData } = await supabase
+    .from("chats")
+    .select("typing")
+    .eq("id", chatId)
+    .single();
+  const typingMap: Record<string, number> = { ...((chatData?.typing as Record<string, number>) ?? {}) };
+  typingMap[uid] = typing ? Date.now() : 0;
+  await supabase.from("chats").update({ typing: typingMap }).eq("id", chatId);
+}
+
+export async function uploadMedia(
+  source: File | Blob | string,
+  userId: string,
+  chatId: string,
+): Promise<{ url: string; type: MessageType; name: string; mime: string; size: number }> {
+  const isString = typeof source === "string";
+  const url = isString
+    ? source
+    : await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("File read failed"));
+        reader.readAsDataURL(source);
+      });
+  const mime = isString ? "application/octet-stream" : source.type || "application/octet-stream";
+  const size = isString ? 0 : source.size;
+  const name = isString ? `media_${Date.now()}` : "name" in source ? source.name : `media_${Date.now()}`;
+  const type: MessageType =
+    mime.startsWith("image/") ? "image" :
+    mime.startsWith("video/") ? "video" :
+    mime.startsWith("audio/") ? "audio" :
+    "file";
+  return { url, type, name, mime, size };
+}
+
+export async function addMemberToGroup(chatId: string, memberId: string) {
+  const { data: chatData } = await supabase
+    .from("chats")
+    .select("members, unread")
+    .eq("id", chatId)
+    .single();
+  const members: string[] = Array.from(new Set([...(chatData?.members as string[] ?? []), memberId]));
+  const unread: Record<string, number> = { ...((chatData?.unread as Record<string, number>) ?? {}) };
+  unread[memberId] = unread[memberId] ?? 0;
+  await supabase.from("chats").update({ members, unread }).eq("id", chatId);
+}
+
+export async function leaveGroup(chatId: string, uid: string) {
+  const { data: chatData } = await supabase
+    .from("chats")
+    .select("members, unread")
+    .eq("id", chatId)
+    .single();
+  const members: string[] = ((chatData?.members as string[]) ?? []).filter((m) => m !== uid);
+  const unread: Record<string, number> = { ...((chatData?.unread as Record<string, number>) ?? {}) };
+  delete unread[uid];
+  await supabase.from("chats").update({ members, unread }).eq("id", chatId);
+}
+
 export function getBlockedUsers(uid: string): Set<string> {
   try {
     const raw = localStorage.getItem(`chatrazze:blocked:${uid}`);

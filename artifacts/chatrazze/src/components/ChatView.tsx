@@ -209,7 +209,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     setShowAttachMenu(false);
     setUploadHint(`${t("uploading")} ${kind}...`);
     try {
-      const uploaded = await uploadMedia(chatId, f, f.name);
+      const uploaded = await uploadMedia(f, user!.uid, chatId);
       const realId = await sendMessage(chatId, user!.uid, {
         type: kind,
         mediaUrl: uploaded.url,
@@ -444,7 +444,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
               try {
                 const ext = blob.type.includes("mp4") || blob.type.includes("aac") ? "mp4"
                   : blob.type.includes("ogg") ? "ogg" : "webm";
-                const uploaded = await uploadMedia(chatId, blob, `voice_${Date.now()}.${ext}`);
+                const uploaded = await uploadMedia(blob, user.uid, chatId);
                 const realId = await sendMessage(chatId, user.uid, {
                   type: "audio",
                   mediaUrl: uploaded.url,
