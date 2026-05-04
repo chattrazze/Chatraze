@@ -86,6 +86,15 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   });
   const [lockPinInput, setLockPinInput] = useState("");
   const [lockPinError, setLockPinError] = useState("");
+
+  // Reset lock state whenever the active chat changes
+  useEffect(() => {
+    const pin = localStorage.getItem(`chatrazze:lock:${chatId}`);
+    const unlocked = !pin || sessionStorage.getItem(`chatrazze:unlocked:${chatId}`) === "1";
+    setChatUnlocked(unlocked);
+    setLockPinInput("");
+    setLockPinError("");
+  }, [chatId]);
   const lastMsgIdRef = useRef<string | null>(null);
   // Map uid → displayName for group members
   const [membersMap, setMembersMap] = useState<Record<string, string>>({});

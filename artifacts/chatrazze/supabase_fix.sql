@@ -122,6 +122,11 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  -- Protect ownership / identity fields unconditionally
+  IF NEW.created_by IS DISTINCT FROM OLD.created_by THEN
+    RAISE EXCEPTION 'created_by is immutable after creation';
+  END IF;
+  -- Protect admin-only group settings
   IF (
     NEW.name                IS DISTINCT FROM OLD.name                OR
     NEW.description         IS DISTINCT FROM OLD.description         OR
