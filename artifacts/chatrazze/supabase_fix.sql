@@ -303,6 +303,9 @@ CREATE TABLE IF NOT EXISTS chat_members (
   PRIMARY KEY (chat_id, user_id)
 );
 
+-- Idempotent: add starred_chats if the table already existed without it
+ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS starred_chats BOOLEAN NOT NULL DEFAULT FALSE;
+
 ALTER TABLE chat_members ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Members can read chat_members"      ON chat_members;
