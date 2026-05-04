@@ -110,10 +110,49 @@ CREATE POLICY "Users can insert chats" ON chats
   FOR INSERT
   WITH CHECK (auth.uid()::text = ANY(members));
 
--- UPDATE: user must be a member
-CREATE POLICY "Users can update their chats" ON chats
+-- UPDATE (messaging metadata): any member can update unread/typing/last_message fields
+DROP POLICY IF EXISTS "Members can update chat metadata"   ON chats;
+CREATE POLICY "Members can update chat metadata" ON chats
   FOR UPDATE
   USING (auth.uid()::text = ANY(members));
+
+-- ============================================================
+-- ADMIN-ONLY GROUP SETTINGS (SECURITY DEFINER RPC)
+-- Only the group creator (admin) can update protected fields.
+-- This function is called instead of a direct UPDATE for
+-- name / description / avatar_url / self_destruct_timer / invite_token.
+-- ============================================================
+DROP FUNCTION IF EXISTS update_group_settings(TEXT,TEXT,TEXT,TEXT,INTEGER,UUID);
+CREATE OR REPLACE FUNCTION update_group_settings(
+  p_chat_id            TEXT,
+  p_name               TEXT    DEFAULT NULL,
+  p_description        TEXT    DEFAULT NULL,
+  p_avatar_url         TEXT    DEFAULT NULL,
+  p_self_destruct_timer INTEGER DEFAULT NULL,
+  p_invite_token       UUID    DEFAULT NULL
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Verify caller is the group admin
+  IF NOT EXISTS (
+    SELECT 1 FROM chats
+    WHERE id = p_chat_id
+      AND created_by = auth.uid()::text
+  ) THEN
+    RAISE EXCEPTION 'Only the group admin can update group settings';
+  END IF;
+
+  UPDATE chats SET
+    name                = COALESCE(p_name,                name),
+    description         = COALESCE(p_description,         description),
+    avatar_url          = COALESCE(p_avatar_url,          avatar_url),
+    self_destruct_timer = COALESCE(p_self_destruct_timer, self_destruct_timer),
+    invite_token        = COALESCE(p_invite_token,        invite_token)
+  WHERE id = p_chat_id;
+END;
+$$;
 
 -- ── messages ─────────────────────────────────────────────────
 -- SELECT: user must be a member of the chat

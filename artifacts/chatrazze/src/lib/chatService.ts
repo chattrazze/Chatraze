@@ -484,19 +484,17 @@ export async function getGroupInfo(chatId: string): Promise<{ name: string | nul
 
 export async function updateGroupInfo(
   chatId: string,
-  adminUid: string,
+  _adminUid: string,
   updates: { name?: string; avatar_url?: string; description?: string },
 ): Promise<void> {
-  const { data: chat, error: fetchErr } = await supabase
-    .from("chats")
-    .select("created_by")
-    .eq("id", chatId)
-    .single();
-  if (fetchErr) throw fetchErr;
-  if ((chat as Record<string, unknown>)?.created_by !== adminUid) {
-    throw new Error("Only the group admin can update group info.");
-  }
-  const { error } = await supabase.from("chats").update(updates).eq("id", chatId);
+  const { error } = await supabase.rpc("update_group_settings", {
+    p_chat_id:    chatId,
+    p_name:       updates.name        ?? null,
+    p_description: updates.description ?? null,
+    p_avatar_url: updates.avatar_url  ?? null,
+    p_self_destruct_timer: null,
+    p_invite_token: null,
+  });
   if (error) throw error;
 }
 
@@ -540,10 +538,14 @@ export async function getOrCreateInviteToken(chatId: string): Promise<string> {
   const existing = (data as Record<string, unknown> | null)?.invite_token as string | null;
   if (existing) return existing;
   const token = crypto.randomUUID();
-  const { error: updateErr } = await supabase
-    .from("chats")
-    .update({ invite_token: token })
-    .eq("id", chatId);
+  const { error: updateErr } = await supabase.rpc("update_group_settings", {
+    p_chat_id:            chatId,
+    p_name:               null,
+    p_description:        null,
+    p_avatar_url:         null,
+    p_self_destruct_timer: null,
+    p_invite_token:       token,
+  });
   if (updateErr) {
     console.error("[chatService] getOrCreateInviteToken update error:", updateErr);
     throw updateErr;
@@ -564,17 +566,15 @@ export async function getGroupSelfDestruct(chatId: string): Promise<number> {
   return (data as Record<string, unknown>)?.self_destruct_timer as number ?? 0;
 }
 
-export async function updateGroupSelfDestruct(chatId: string, adminUid: string, secs: number): Promise<void> {
-  const { data: chat, error: fetchErr } = await supabase
-    .from("chats")
-    .select("created_by")
-    .eq("id", chatId)
-    .single();
-  if (fetchErr) throw fetchErr;
-  if ((chat as Record<string, unknown>)?.created_by !== adminUid) {
-    throw new Error("Only the group admin can change the self-destruct timer.");
-  }
-  const { error } = await supabase.from("chats").update({ self_destruct_timer: secs }).eq("id", chatId);
+export async function updateGroupSelfDestruct(chatId: string, _adminUid: string, secs: number): Promise<void> {
+  const { error } = await supabase.rpc("update_group_settings", {
+    p_chat_id:            chatId,
+    p_name:               null,
+    p_description:        null,
+    p_avatar_url:         null,
+    p_self_destruct_timer: secs,
+    p_invite_token:       null,
+  });
   if (error) throw error;
 }
 

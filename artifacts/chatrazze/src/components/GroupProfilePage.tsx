@@ -987,9 +987,13 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
           <input
             type="password"
             inputMode="numeric"
-            maxLength={8}
-            value={pinStep === 1 ? pinA : pinB}
-            onChange={(e) => pinStep === 1 ? setPinA(e.target.value.replace(/\D/g, "")) : setPinB(e.target.value.replace(/\D/g, ""))}
+            maxLength={4}
+            value={showPINModal === "remove" ? pinA : (pinStep === 1 ? pinA : pinB)}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+              if (showPINModal === "remove" || pinStep === 1) setPinA(v);
+              else setPinB(v);
+            }}
             placeholder="••••"
             className="w-full bg-input border border-border rounded-xl px-3 py-2.5 text-center text-lg tracking-widest outline-none focus:ring-2 focus:ring-primary/50 mb-4"
             autoFocus
@@ -1000,11 +1004,6 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
           >
             {t("confirm")}
           </button>
-          {showPINModal === "remove" && (
-            <button onClick={() => { saveChatLockPIN(chatId, null); setLockPIN(null); toast.show(t("pinRemoved")); closePINModal(); }} className="w-full py-2 mt-2 text-sm text-red-400 hover:text-red-300">
-              {t("pinRemoved")}
-            </button>
-          )}
         </Modal>
       )}
 
