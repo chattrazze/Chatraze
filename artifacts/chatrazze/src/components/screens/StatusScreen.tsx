@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
+  Camera,
   CircleDot,
-  Image as ImageIcon,
-  Plus,
-  X,
-  FileText,
-  Heart,
-  MoreVertical,
-  Send,
   Eye,
+  Heart,
+  LayoutGrid,
+  MoreVertical,
+  Music2,
+  Pencil,
+  Plus,
+  Send,
+  Type,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -30,7 +33,7 @@ import { createChat, sendMessage } from "@/lib/chatService";
 import { getUser } from "@/lib/userService";
 import type { AppUser } from "@/lib/userService";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
 
 function timeLeft(createdIso: string): string {
   const created = new Date(createdIso).getTime();
@@ -100,7 +103,7 @@ async function uploadStatusImage(file: File, uid: string): Promise<string> {
   return urlData.publicUrl;
 }
 
-// ── WhatsApp-style Status Viewer ─────────────────────────────────────────────
+/* ── StatusViewer ─────────────────────────────────────────────────────────── */
 
 interface ViewerProps {
   statuses: UserStatus[];
@@ -111,7 +114,7 @@ interface ViewerProps {
   onOpenChat: (chatId: string, peer: AppUser) => void;
 }
 
-function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat }: ViewerProps) {
+function StatusViewer({ statuses, startIndex, myUid, myName: _myName, onClose, onOpenChat }: ViewerProps) {
   const [idx, setIdx] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -129,52 +132,35 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
   const isOwn = current?.user_id === myUid;
 
   const goNext = useCallback(() => {
-    setLiked(false);
-    setReply("");
+    setLiked(false); setReply("");
     if (idx < statuses.length - 1) {
-      setIdx((i) => i + 1);
-      setProgress(0);
-      startRef.current = Date.now();
-    } else {
-      onClose();
-    }
+      setIdx((i) => i + 1); setProgress(0); startRef.current = Date.now();
+    } else { onClose(); }
   }, [idx, statuses.length, onClose]);
 
   const goPrev = useCallback(() => {
-    setLiked(false);
-    setReply("");
-    if (idx > 0) {
-      setIdx((i) => i - 1);
-      setProgress(0);
-      startRef.current = Date.now();
-    }
+    setLiked(false); setReply("");
+    if (idx > 0) { setIdx((i) => i - 1); setProgress(0); startRef.current = Date.now(); }
   }, [idx]);
 
-  // Load seen-by when switching to own status
   useEffect(() => {
     if (!isOwn || !current) return;
     setSeenLoading(true);
     loadStatusViews(current.id).then(async (views) => {
       const withProfiles = await Promise.all(
-        views
-          .filter((v) => v.viewer_id !== myUid)
-          .map(async (v) => {
-            const profile = await getUser(v.viewer_id).catch(() => undefined);
-            return { ...v, profile: profile ?? undefined };
-          }),
+        views.filter((v) => v.viewer_id !== myUid).map(async (v) => {
+          const profile = await getUser(v.viewer_id).catch(() => undefined);
+          return { ...v, profile: profile ?? undefined };
+        }),
       );
       setSeenByList(withProfiles);
       setSeenLoading(false);
     });
   }, [isOwn, current?.id, myUid]);
 
-  // Animate progress bar
   useEffect(() => {
-    setProgress(0);
-    setLiked(false);
-    setReply("");
+    setProgress(0); setLiked(false); setReply("");
     startRef.current = Date.now();
-
     const tick = () => {
       if (!paused) {
         const elapsed = Date.now() - startRef.current;
@@ -188,29 +174,16 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
     return () => { if (progressRef.current) cancelAnimationFrame(progressRef.current); };
   }, [idx, paused, goNext]);
 
-  // Send like as actual message + save interaction
   async function handleLike() {
     if (!current || isOwn || liked) return;
-    const newLiked = !liked;
-    setLiked(newLiked);
-    if (!newLiked) return;
+    setLiked(true);
     try {
       const chatId = await createChat(myUid, current.user_id);
       await sendMessage(chatId, myUid, { type: "text", text: "❤️" });
-      await addStatusInteraction({
-        statusId: current.id,
-        senderId: myUid,
-        recipientId: current.user_id,
-        chatId,
-        kind: "reaction",
-        content: "❤️",
-      });
-    } catch (err) {
-      console.error("Failed to send like:", err);
-    }
+      await addStatusInteraction({ statusId: current.id, senderId: myUid, recipientId: current.user_id, chatId, kind: "reaction", content: "❤️" });
+    } catch { /* ignore */ }
   }
 
-  // Send reply as actual message + save interaction
   async function handleSendReply() {
     if (!current || isOwn || !reply.trim() || sending) return;
     const text = reply.trim();
@@ -218,36 +191,20 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
     try {
       const chatId = await createChat(myUid, current.user_id);
       await sendMessage(chatId, myUid, { type: "text", text });
-      await addStatusInteraction({
-        statusId: current.id,
-        senderId: myUid,
-        recipientId: current.user_id,
-        chatId,
-        kind: "reply",
-        content: text,
-      });
-      setReply("");
-      setPaused(false);
+      await addStatusInteraction({ statusId: current.id, senderId: myUid, recipientId: current.user_id, chatId, kind: "reply", content: text });
+      setReply(""); setPaused(false);
       startRef.current = Date.now() - progress * STORY_DURATION_MS;
-      // Navigate to chat
       const peerProfile = await getUser(current.user_id).catch(() => null);
-      if (peerProfile) {
-        onClose();
-        onOpenChat(chatId, peerProfile);
-      }
-    } catch (err) {
-      console.error("Failed to send reply:", err);
-    } finally {
-      setSending(false);
-    }
+      if (peerProfile) { onClose(); onOpenChat(chatId, peerProfile); }
+    } catch { /* ignore */ }
+    finally { setSending(false); }
   }
 
   function handleTap(e: React.MouseEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("button, input, textarea, .no-tap")) return;
     const x = e.clientX;
     const w = window.innerWidth;
-    if (x < w * 0.35) goPrev();
-    else goNext();
+    if (x < w * 0.35) goPrev(); else goNext();
   }
 
   if (!current) return null;
@@ -256,9 +213,9 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
     <div
       className="fixed inset-0 z-[60] bg-black flex flex-col select-none"
       onClick={handleTap}
-      onMouseDown={() => { setPaused(true); }}
+      onMouseDown={() => setPaused(true)}
       onMouseUp={() => { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
-      onTouchStart={() => { setPaused(true); }}
+      onTouchStart={() => setPaused(true)}
       onTouchEnd={() => { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; }}
     >
       {/* Progress bars */}
@@ -280,7 +237,7 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
         ) : (
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
-            style={{ background: current.background_color || "#333" }}
+            style={{ background: current.background_color || "#FF7A1A" }}
           >
             {(current.user_name || "?").charAt(0).toUpperCase()}
           </div>
@@ -291,32 +248,23 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
         </div>
         <div className="flex items-center gap-1">
           {isOwn && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); setShowSeenBy(false); }}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10"
-            >
+            <button onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v); setShowSeenBy(false); }}
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10">
               <MoreVertical className="w-5 h-5 text-white" />
             </button>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10"
-          >
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10">
             <X className="w-6 h-6 text-white" />
           </button>
         </div>
       </div>
 
-      {/* Owner menu */}
       {showMenu && (
-        <div
-          className="absolute top-16 right-4 z-30 glass rounded-xl overflow-hidden shadow-xl border border-border no-tap"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => { setShowMenu(false); onClose(); }}
-            className="w-full px-5 py-3 text-sm text-destructive hover:bg-white/5 text-left"
-          >
+        <div className="absolute top-16 right-4 z-30 glass rounded-xl overflow-hidden shadow-xl border border-border no-tap"
+          onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => { setShowMenu(false); onClose(); }}
+            className="w-full px-5 py-3 text-sm text-destructive hover:bg-white/5 text-left">
             حذف الستاتي
           </button>
         </div>
@@ -327,23 +275,16 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
         {current.media_url ? (
           <img src={current.media_url} className="w-full h-full object-cover" alt="status" draggable={false} />
         ) : (
-          <div
-            className="w-full h-full flex items-center justify-center px-10"
-            style={{ background: current.background_color || "#1a1a2e" }}
-          >
-            <p className="text-white text-2xl font-semibold text-center leading-relaxed">
-              {current.content}
-            </p>
+          <div className="w-full h-full flex items-center justify-center px-10"
+            style={{ background: current.background_color || "#1a1a2e" }}>
+            <p className="text-white text-2xl font-semibold text-center leading-relaxed">{current.content}</p>
           </div>
         )}
       </div>
 
-      {/* Caption on image */}
       {current.media_url && current.content && (
         <div className="absolute bottom-24 left-0 right-0 px-6 pointer-events-none">
-          <p className="text-white text-base font-medium text-center drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">
-            {current.content}
-          </p>
+          <p className="text-white text-base font-medium text-center drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]">{current.content}</p>
         </div>
       )}
 
@@ -354,11 +295,9 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
         onClick={(e) => e.stopPropagation()}
       >
         {!isOwn ? (
-          // ── Viewer: reply + like ──
           <div className="flex items-center gap-3 px-4 pb-8 pt-3">
             <input
-              type="text"
-              value={reply}
+              type="text" value={reply}
               onChange={(e) => setReply(e.target.value)}
               onFocus={() => setPaused(true)}
               onBlur={() => { if (!reply.trim()) { setPaused(false); startRef.current = Date.now() - progress * STORY_DURATION_MS; } }}
@@ -367,44 +306,30 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
               className="flex-1 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2.5 text-white text-sm placeholder:text-white/50 outline-none focus:border-white/40"
             />
             {reply.trim() ? (
-              <button
-                onClick={handleSendReply}
-                disabled={sending}
-                className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-60"
-              >
+              <button onClick={handleSendReply} disabled={sending}
+                className="w-11 h-11 rounded-full bg-primary flex items-center justify-center shrink-0 active:scale-90 transition disabled:opacity-60">
                 {sending
                   ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   : <Send className="w-5 h-5 text-white" />}
               </button>
             ) : (
-              <button
-                onClick={handleLike}
-                className="w-11 h-11 flex items-center justify-center shrink-0 active:scale-90 transition"
-              >
-                <Heart
-                  className="w-7 h-7 transition-all duration-200"
+              <button onClick={handleLike} className="w-11 h-11 flex items-center justify-center shrink-0 active:scale-90 transition">
+                <Heart className="w-7 h-7 transition-all duration-200"
                   fill={liked ? "#FF4E00" : "none"}
                   stroke={liked ? "#FF4E00" : "white"}
-                  strokeWidth={liked ? 0 : 2}
-                />
+                  strokeWidth={liked ? 0 : 2} />
               </button>
             )}
           </div>
         ) : (
-          // ── Owner: seen-by list ──
           <div className="px-4 pb-8 pt-3">
-            <button
-              onClick={() => { setShowSeenBy((v) => !v); setPaused((v) => !v); }}
-              className="flex items-center gap-2 text-white/80 text-sm"
-            >
+            <button onClick={() => { setShowSeenBy((v) => !v); setPaused((v) => !v); }}
+              className="flex items-center gap-2 text-white/80 text-sm">
               <Eye className="w-4 h-4" />
-              <span>
-                {seenLoading ? "…" : seenByList.length === 0
-                  ? "لا أحد شاهد بعد"
-                  : `${seenByList.length} ${seenByList.length === 1 ? "شخص" : "أشخاص"} شاهدوا`}
-              </span>
+              <span>{seenLoading ? "…" : seenByList.length === 0
+                ? "لا أحد شاهد بعد"
+                : `${seenByList.length} ${seenByList.length === 1 ? "شخص" : "أشخاص"} شاهدوا`}</span>
             </button>
-
             {showSeenBy && seenByList.length > 0 && (
               <div className="mt-3 space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
                 {seenByList.map((v) => (
@@ -417,9 +342,7 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium truncate">
-                        {v.profile?.displayName || v.viewer_id.slice(0, 8)}
-                      </p>
+                      <p className="text-white text-sm font-medium truncate">{v.profile?.displayName || v.viewer_id.slice(0, 8)}</p>
                       <p className="text-white/50 text-[11px]">{formatViewerTime(v.viewed_at)}</p>
                     </div>
                     <Heart className="w-4 h-4 text-white/30 shrink-0" />
@@ -434,7 +357,314 @@ function StatusViewer({ statuses, startIndex, myUid, myName, onClose, onOpenChat
   );
 }
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
+/* ── Story Circle ─────────────────────────────────────────────────────────── */
+
+function StoryCircle({
+  label, avatar, bgColor, preview, hasStory, viewed, isMe, hasPlus, size = "lg",
+  onClick,
+}: {
+  label: string; avatar?: string | null; bgColor?: string; preview?: string | null;
+  hasStory?: boolean; viewed?: boolean; isMe?: boolean; hasPlus?: boolean;
+  size?: "lg" | "sm"; onClick: () => void;
+}) {
+  const dim = size === "lg" ? "w-16 h-16" : "w-14 h-14";
+  const ringCls = hasStory
+    ? viewed
+      ? "ring-[2.5px] ring-white/30"
+      : "ring-[2.5px] ring-[#FF7A1A]"
+    : isMe
+      ? "ring-[2.5px] ring-white/15"
+      : "ring-[2.5px] ring-white/15";
+
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-1.5 shrink-0 w-[72px]">
+      <div className={`relative ${dim} rounded-full ${ringCls} ring-offset-[3px] ring-offset-background overflow-visible`}>
+        {/* Inner circle */}
+        <div className="w-full h-full rounded-full overflow-hidden">
+          {preview ? (
+            <img src={preview} className="w-full h-full object-cover" alt={label} />
+          ) : avatar ? (
+            <img src={avatar} className="w-full h-full object-cover" alt={label} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center font-bold text-white text-lg"
+              style={{ background: bgColor || "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
+              {label.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+        {/* + badge */}
+        {hasPlus && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#FF7A1A] border-2 border-background flex items-center justify-center z-10">
+            <Plus className="w-3 h-3 text-white" />
+          </span>
+        )}
+      </div>
+      <span className="text-[11px] text-center leading-tight truncate w-full text-muted-foreground">
+        {label}
+      </span>
+    </button>
+  );
+}
+
+/* ── Text Composer (fullscreen) ──────────────────────────────────────────── */
+
+const BG_GRADIENTS = [
+  { id: "dark",    style: { background: "#1a1a2e" } },
+  { id: "navy",    style: { background: "linear-gradient(135deg,#0f3460,#16213e)" } },
+  { id: "orange",  style: { background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" } },
+  { id: "purple",  style: { background: "linear-gradient(135deg,#533483,#2d1b69)" } },
+  { id: "teal",    style: { background: "linear-gradient(135deg,#2d6a4f,#1b4332)" } },
+  { id: "rose",    style: { background: "linear-gradient(135deg,#e94560,#9b2226)" } },
+  { id: "slate",   style: { background: "linear-gradient(135deg,#334155,#1e293b)" } },
+  { id: "amber",   style: { background: "linear-gradient(135deg,#d97706,#92400e)" } },
+];
+
+function TextComposer({
+  initialText,
+  onSave,
+  onClose,
+  saving,
+}: {
+  initialText?: string;
+  onSave: (text: string, bgColor: string) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const [text, setText] = useState(initialText ?? "");
+  const [bgIdx, setBgIdx] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+
+  const currentBg = BG_GRADIENTS[bgIdx];
+
+  return (
+    <div className="fixed inset-0 z-[55] flex flex-col" style={currentBg.style}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 pt-safe pt-4 pb-3">
+        <button onClick={onClose}
+          className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center active:scale-90 transition">
+          <X className="w-5 h-5 text-white" />
+        </button>
+        <div className="flex items-center gap-1">
+          {BG_GRADIENTS.map((bg, i) => (
+            <button
+              key={bg.id}
+              onClick={() => setBgIdx(i)}
+              className={`w-7 h-7 rounded-full border-2 transition active:scale-90 ${i === bgIdx ? "border-white scale-110" : "border-transparent"}`}
+              style={bg.style}
+            />
+          ))}
+        </div>
+        <button
+          onClick={() => { if (text.trim()) onSave(text.trim(), `bg-${bgIdx}`); }}
+          disabled={!text.trim() || saving}
+          className="px-4 py-2 rounded-full bg-white text-sm font-bold disabled:opacity-40 active:scale-95 transition"
+          style={{ color: "#FF7A1A" }}
+        >
+          {saving ? "…" : "مشاركة"}
+        </button>
+      </div>
+
+      {/* Text area — centered */}
+      <div className="flex-1 flex items-center justify-center px-8">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, 200))}
+          placeholder="اكتب ستاتس…"
+          rows={4}
+          className="w-full bg-transparent text-white text-2xl font-semibold text-center resize-none outline-none placeholder:text-white/40"
+          style={{ caretColor: "white" }}
+        />
+      </div>
+
+      {/* Character count */}
+      <div className="pb-8 text-center">
+        <span className="text-white/50 text-xs">{text.length}/200</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Photo Composer ───────────────────────────────────────────────────────── */
+
+function PhotoComposer({
+  file,
+  onSave,
+  onClose,
+  saving,
+}: {
+  file: File;
+  onSave: (caption: string) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const [preview] = useState(() => URL.createObjectURL(file));
+  const [caption, setCaption] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-[55] flex flex-col bg-black">
+      {/* Image fill */}
+      <div className="flex-1 relative">
+        <img src={preview} className="w-full h-full object-contain" alt="preview" />
+        {/* Top bar */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-4 pb-3"
+          style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)" }}>
+          <button onClick={onClose}
+            className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center active:scale-90 transition">
+            <X className="w-5 h-5 text-white" />
+          </button>
+          <button
+            onClick={() => onSave(caption)}
+            disabled={saving}
+            className="px-5 py-2 rounded-full bg-[#FF7A1A] text-white text-sm font-bold disabled:opacity-50 active:scale-95 transition flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            {saving ? "…" : "مشاركة"}
+          </button>
+        </div>
+      </div>
+      {/* Caption bar */}
+      <div className="px-4 py-3 bg-[#111] flex items-center gap-3">
+        <input
+          type="text"
+          value={caption}
+          onChange={(e) => setCaption(e.target.value.slice(0, 200))}
+          placeholder="أضف وصفاً…"
+          className="flex-1 bg-white/10 rounded-full px-4 py-2.5 text-white text-sm outline-none placeholder:text-white/40"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ── Creation Menu Sheet ─────────────────────────────────────────────────── */
+
+function CreationSheet({
+  onText,
+  onPhoto,
+  onClose,
+  fileRef,
+}: {
+  onText: () => void;
+  onPhoto: (file: File) => void;
+  onClose: () => void;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const { show } = useToast();
+
+  const options = [
+    {
+      icon: <Type className="w-6 h-6" />,
+      label: "نص",
+      color: "#FF7A1A",
+      bg: "rgba(255,122,26,0.15)",
+      action: onText,
+    },
+    {
+      icon: <Music2 className="w-6 h-6" />,
+      label: "موسيقى",
+      color: "#a78bfa",
+      bg: "rgba(167,139,250,0.15)",
+      action: () => { show("قريباً 🎵"); onClose(); },
+    },
+    {
+      icon: <LayoutGrid className="w-6 h-6" />,
+      label: "تخطيط",
+      color: "#34d399",
+      bg: "rgba(52,211,153,0.15)",
+      action: () => { show("قريباً 📐"); onClose(); },
+    },
+    {
+      icon: <Pencil className="w-6 h-6" />,
+      label: "رسم",
+      color: "#f472b6",
+      bg: "rgba(244,114,182,0.15)",
+      action: () => { show("قريباً 🖌️"); onClose(); },
+    },
+  ];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Sheet */}
+      <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl bg-[#111] pb-safe pb-8 overflow-hidden">
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-4">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
+        </div>
+
+        {/* Photo options row */}
+        <div className="px-5 mb-5 flex items-center gap-3">
+          <div className="flex-1 text-center">
+            <p className="text-xs text-white/40 mb-1">الصور</p>
+          </div>
+          <div className="flex-1 text-center">
+            <p className="text-xs text-white/40 mb-1">الألبومات</p>
+          </div>
+        </div>
+
+        {/* 2×2 grid + camera circle */}
+        <div className="px-5">
+          {/* Options grid */}
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {options.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={opt.action}
+                className="flex flex-col items-center gap-2 active:scale-90 transition"
+              >
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: opt.bg, color: opt.color }}
+                >
+                  {opt.icon}
+                </div>
+                <span className="text-xs text-white/70">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Camera button — big */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-full py-4 rounded-2xl flex flex-col items-center gap-2 active:scale-95 transition"
+            style={{ background: "rgba(255,255,255,0.06)" }}
+          >
+            <div className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.08)" }}>
+              <Camera className="w-8 h-8 text-white/80" />
+            </div>
+            <span className="text-sm text-white/70">كاميرا</span>
+          </button>
+        </div>
+      </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onPhoto(file);
+        }}
+      />
+    </>
+  );
+}
+
+/* ── Main Screen ─────────────────────────────────────────────────────────── */
+
+type ComposerState =
+  | { kind: "none" }
+  | { kind: "menu" }
+  | { kind: "text"; initialText?: string; bgColor?: string }
+  | { kind: "photo"; file: File };
 
 export default function StatusScreen({
   onGoToChats,
@@ -444,26 +674,17 @@ export default function StatusScreen({
   const { user } = useAuth();
   const { show } = useToast();
   const { t } = useLang();
-  const [myStatus, setMyStatus]       = useState<UserStatus | null>(null);
-  const [others, setOthers]           = useState<UserStatus[]>([]);
-  const [viewedIds, setViewedIds]     = useState<Set<string>>(new Set());
-  const [composerOpen, setComposerOpen] = useState(false);
+
+  const [myStatus, setMyStatus]   = useState<UserStatus | null>(null);
+  const [others, setOthers]       = useState<UserStatus[]>([]);
+  const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+  const [composer, setComposer]   = useState<ComposerState>({ kind: "none" });
+  const [posting, setPosting]     = useState(false);
 
   const [viewerStatuses, setViewerStatuses] = useState<UserStatus[] | null>(null);
   const [viewerStart, setViewerStart]       = useState(0);
 
-  const [draft, setDraft]             = useState("");
-  const [previewImg, setPreviewImg]   = useState<string | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [bgColor, setBgColor]         = useState("#1a1a2e");
-  const [posting, setPosting]         = useState(false);
-  const [composerTab, setComposerTab] = useState<"text" | "photo">("text");
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const COLORS = [
-    "#1a1a2e","#16213e","#0f3460","#533483",
-    "#e94560","#2d6a4f","#6b705c","#9b2226",
-  ];
 
   async function refresh() {
     if (!user) return;
@@ -483,59 +704,57 @@ export default function StatusScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPendingFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPreviewImg(ev.target?.result as string);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
-
-  async function save() {
-    if (!user) return;
-    if (!draft.trim() && !pendingFile) return;
+  async function saveTextStatus(text: string, bgKey: string) {
+    if (!user || !text.trim()) return;
     setPosting(true);
     try {
-      let mediaUrl: string | undefined;
-      if (pendingFile) mediaUrl = await uploadStatusImage(pendingFile, user.uid);
+      const bgIdx = parseInt(bgKey.replace("bg-", "")) || 0;
+      const bgGrad = BG_GRADIENTS[bgIdx] ?? BG_GRADIENTS[0];
+      const bgColor = typeof bgGrad.style.background === "string" ? bgGrad.style.background : "#1a1a2e";
       const result = await upsertStatus({
         user_id: user.uid,
         user_name: user.displayName || user.email || "Anonymous",
         user_avatar: user.photoURL || undefined,
-        type: pendingFile ? "image" : "text",
-        content: draft.trim() || undefined,
-        media_url: mediaUrl,
+        type: "text",
+        content: text,
         background_color: bgColor,
       });
       if (!result) throw new Error("Failed to save status");
       setMyStatus(result);
-      setDraft(""); setPreviewImg(null); setPendingFile(null);
-      setComposerOpen(false);
+      setComposer({ kind: "none" });
       show(t("statusPosted"));
       refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      show(`${t("uploadFailed")}: ${msg}`);
+      show(`${t("uploadFailed")}: ${err instanceof Error ? err.message : "unknown"}`);
     } finally {
       setPosting(false);
     }
   }
 
-  async function clearStatus() {
+  async function savePhotoStatus(file: File, caption: string) {
     if (!user) return;
-    const ok = await deleteStatus(user.uid);
-    if (ok) { setMyStatus(null); show(t("statusRemoved")); refresh(); }
-  }
-
-  function openComposer() {
-    setDraft(myStatus?.content ?? "");
-    setPreviewImg(myStatus?.media_url ?? null);
-    setBgColor(myStatus?.background_color ?? "#1a1a2e");
-    setPendingFile(null);
-    setComposerTab(myStatus?.media_url ? "photo" : "text");
-    setComposerOpen(true);
+    setPosting(true);
+    try {
+      const mediaUrl = await uploadStatusImage(file, user.uid);
+      const result = await upsertStatus({
+        user_id: user.uid,
+        user_name: user.displayName || user.email || "Anonymous",
+        user_avatar: user.photoURL || undefined,
+        type: "image",
+        content: caption.trim() || undefined,
+        media_url: mediaUrl,
+        background_color: "#000000",
+      });
+      if (!result) throw new Error("Failed to save status");
+      setMyStatus(result);
+      setComposer({ kind: "none" });
+      show(t("statusPosted"));
+      refresh();
+    } catch (err) {
+      show(`${t("uploadFailed")}: ${err instanceof Error ? err.message : "unknown"}`);
+    } finally {
+      setPosting(false);
+    }
   }
 
   async function openViewer(statuses: UserStatus[], startIdx: number) {
@@ -552,71 +771,161 @@ export default function StatusScreen({
     }
   }
 
+  async function clearStatus() {
+    if (!user) return;
+    const ok = await deleteStatus(user.uid);
+    if (ok) { setMyStatus(null); show(t("statusRemoved")); refresh(); }
+  }
+
+  /* ── Unviewed first ── */
+  const sortedOthers = [...others].sort((a, b) => {
+    const aViewed = viewedIds.has(a.id) ? 1 : 0;
+    const bViewed = viewedIds.has(b.id) ? 1 : 0;
+    return aViewed - bViewed;
+  });
+
+  const myLabel = user?.displayName?.split(" ")[0] || "حالتي";
+
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <header className="px-5 pt-6 pb-4 glass border-b border-border">
-        <h1 className="text-2xl font-bold tracking-tight">{t("statusTitle")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t("statusSub")}</p>
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+
+      {/* ── Header ── */}
+      <header className="flex items-center justify-between px-5 pt-6 pb-4 glass border-b border-border shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("statusTitle")}</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("statusSub")}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setComposer({ kind: "menu" })}
+            className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition active:scale-90"
+            title="إضافة ستاتس"
+          >
+            <Camera className="w-5 h-5 text-muted-foreground" />
+          </button>
+          {myStatus && (
+            <button
+              onClick={() => setComposer({ kind: "text", initialText: myStatus.content, bgColor: myStatus.background_color })}
+              className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition active:scale-90"
+              title="تعديل الستاتس"
+            >
+              <Pencil className="w-4.5 h-4.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-2">
-        {/* My status */}
-        <button
-          onClick={openComposer}
-          className="w-full flex items-center gap-3 p-3 rounded-2xl glass hover:bg-white/5 active:scale-[0.99] transition text-start"
-        >
-          <div className="relative shrink-0">
-            {myStatus?.media_url ? (
-              <img src={myStatus.media_url} className="w-14 h-14 rounded-full object-cover ring-2 ring-primary" alt="status" />
-            ) : myStatus ? (
-              <div className="w-14 h-14 rounded-full flex items-center justify-center ring-2 ring-primary" style={{ background: myStatus.background_color }}>
-                <FileText className="w-6 h-6 text-white/90" />
-              </div>
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00] flex items-center justify-center font-semibold text-white text-lg">
-                {(user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
+      {/* ── Scrollable body ── */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+
+        {/* ── STATUS section label ── */}
+        <div className="px-5 pt-5 pb-2 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {t("statusTitle")}
+          </span>
+        </div>
+
+        {/* ── Horizontal story circles ── */}
+        <div className="overflow-x-auto scrollbar-thin">
+          <div className="flex gap-3 px-4 pb-4" style={{ minWidth: "max-content" }}>
+            {/* My status bubble */}
+            <StoryCircle
+              label={myStatus ? myLabel : "إضافة"}
+              avatar={user?.photoURL}
+              bgColor="linear-gradient(135deg,#FF7A1A,#FF4E00)"
+              preview={myStatus?.media_url}
+              hasStory={!!myStatus}
+              viewed={false}
+              isMe
+              hasPlus={!myStatus}
+              onClick={() => {
+                if (myStatus) openViewer([myStatus], 0);
+                else setComposer({ kind: "menu" });
+              }}
+            />
+
+            {/* Others' stories */}
+            {sortedOthers.map((s, i) => (
+              <StoryCircle
+                key={s.id}
+                label={s.user_name.split(" ")[0]}
+                avatar={s.user_avatar}
+                bgColor={s.background_color}
+                preview={s.media_url}
+                hasStory
+                viewed={viewedIds.has(s.id)}
+                onClick={() => openViewer(sortedOthers, i)}
+              />
+            ))}
+
+            {/* Placeholder if only my status */}
+            {others.length === 0 && !myStatus && (
+              <div className="flex items-center justify-center px-4">
+                <p className="text-xs text-muted-foreground">{t("noUpdatesDesc")}</p>
               </div>
             )}
-            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-secondary border-2 border-background flex items-center justify-center">
-              <Plus className="w-3.5 h-3.5 text-white" />
-            </span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">{t("myStatus")}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {myStatus ? myStatus.content || t("addText") : t("tapToAdd")}
-            </p>
-          </div>
-          {myStatus && <span className="text-[10px] text-muted-foreground shrink-0">{timeLeft(myStatus.created_at)}</span>}
-        </button>
+        </div>
 
-        {myStatus && (
-          <div className="flex gap-2 px-1">
-            <button onClick={() => openViewer([myStatus], 0)} className="text-xs text-primary hover:underline">{t("preview")}</button>
-            <span className="text-muted-foreground text-xs">·</span>
-            <button onClick={clearStatus} className="text-xs text-destructive hover:underline">{t("removeStatus")}</button>
-          </div>
-        )}
+        {/* ── Divider ── */}
+        <div className="mx-4 border-t border-border/50" />
 
-        {/* Others */}
-        <p className="text-xs uppercase tracking-wide text-muted-foreground px-2 pt-4">{t("recentUpdates")}</p>
+        {/* ── Recent updates list ── */}
+        <div className="px-4 pt-4 pb-6 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-1 pb-3">
+            {t("recentUpdates")}
+          </p>
 
-        {others.length === 0 ? (
-          <div className="glass rounded-2xl p-8 text-center">
-            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/5 flex items-center justify-center">
-              <CircleDot className="w-6 h-6 text-muted-foreground" />
+          {/* My status row */}
+          {myStatus && (
+            <div className="flex items-center gap-3 p-3 rounded-2xl glass">
+              <div
+                className="w-12 h-12 rounded-full p-[2.5px] shrink-0"
+                style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}
+              >
+                <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
+                  {myStatus.media_url ? (
+                    <img src={myStatus.media_url} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white font-semibold"
+                      style={{ background: myStatus.background_color }}>
+                      {(user?.displayName || "?").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">{t("myStatus")}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {myStatus.content || (myStatus.type === "image" ? "صورة" : "ستاتس")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] text-muted-foreground">{timeLeft(myStatus.created_at)}</span>
+                <button onClick={clearStatus}
+                  className="w-7 h-7 rounded-full hover:bg-destructive/10 flex items-center justify-center transition active:scale-90">
+                  <X className="w-3.5 h-3.5 text-destructive" />
+                </button>
+              </div>
             </div>
-            <p className="font-semibold">{t("noUpdates")}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("noUpdatesDesc")}</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {others.map((s, i) => {
+          )}
+
+          {/* Others */}
+          {sortedOthers.length === 0 && !myStatus ? (
+            <div className="glass rounded-2xl p-10 text-center mt-2">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/5 flex items-center justify-center">
+                <CircleDot className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="font-semibold text-sm">{t("noUpdates")}</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">{t("noUpdatesDesc")}</p>
+            </div>
+          ) : (
+            sortedOthers.map((s, i) => {
               const unviewed = !viewedIds.has(s.id);
               return (
                 <button
                   key={s.id}
-                  onClick={() => openViewer(others, i)}
+                  onClick={() => openViewer(sortedOthers, i)}
                   className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 active:scale-[0.99] transition text-start"
                 >
                   <div className={`w-12 h-12 rounded-full p-[2.5px] shrink-0 ${unviewed ? "bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00]" : "bg-white/15"}`}>
@@ -626,7 +935,8 @@ export default function StatusScreen({
                       ) : s.media_url ? (
                         <img src={s.media_url} className="w-full h-full object-cover" alt={s.user_name} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white font-semibold" style={{ background: s.background_color }}>
+                        <div className="w-full h-full flex items-center justify-center text-white font-semibold"
+                          style={{ background: s.background_color }}>
                           {(s.user_name || "?").charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -635,145 +945,57 @@ export default function StatusScreen({
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{s.user_name}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {s.content || (s.type === "image" ? "Photo" : "Status")}
+                      {s.content || (s.type === "image" ? "صورة" : "ستاتس")}
                     </p>
                   </div>
                   <span className="text-[10px] text-muted-foreground shrink-0">{timeLeft(s.created_at)}</span>
                 </button>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
 
-      {/* Composer Modal */}
-      {composerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center">
-          <div className="glass w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden">
-            <header className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h2 className="font-semibold">{t("newStatus")}</h2>
-              <button
-                onClick={() => { setComposerOpen(false); setPreviewImg(null); setPendingFile(null); }}
-                className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </header>
+      {/* ── FAB: Add status ── */}
+      <button
+        onClick={() => setComposer({ kind: "menu" })}
+        className="fixed bottom-24 right-4 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-30 active:scale-90 transition"
+        style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}
+      >
+        <Plus className="w-7 h-7 text-white" />
+      </button>
 
-            {/* Tab bar */}
-            <div className="flex gap-1 px-4 pt-3">
-              {(["text", "photo"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => {
-                    setComposerTab(tab);
-                    if (tab === "photo") {
-                      if (!previewImg) fileRef.current?.click();
-                    }
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition ${
-                    composerTab === tab
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-white/5 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab === "text" ? (
-                    <><FileText className="w-3.5 h-3.5" />{t("storyText")}</>
-                  ) : (
-                    <><ImageIcon className="w-3.5 h-3.5" />{t("storyCamera")}</>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="p-4 space-y-3">
-              {/* Photo tab */}
-              {composerTab === "photo" && (
-                previewImg ? (
-                  <div className="relative rounded-xl overflow-hidden">
-                    <img src={previewImg} className="w-full max-h-52 object-cover rounded-xl" alt="preview" />
-                    <button
-                      onClick={() => { setPreviewImg(null); setPendingFile(null); }}
-                      className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center"
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full h-40 rounded-xl border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 hover:border-primary/60 hover:bg-primary/5 transition group"
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 group-hover:bg-primary/10 flex items-center justify-center transition">
-                      <ImageIcon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition" />
-                    </div>
-                    <p className="text-sm text-muted-foreground group-hover:text-foreground transition">{t("tapCameraToUpload") ?? t("addImage")}</p>
-                  </button>
-                )
-              )}
-
-              {/* Text tab */}
-              {composerTab === "text" && (
-                <>
-                  <div
-                    className="w-full h-28 rounded-xl flex items-center justify-center px-4 text-white text-sm font-semibold text-center"
-                    style={{ background: bgColor }}
-                  >
-                    {draft.trim() || t("whatsOnMind")}
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setBgColor(color)}
-                        className={`w-7 h-7 rounded-full transition ${bgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
-                        style={{ background: color }}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Caption / text input (both tabs) */}
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value.slice(0, 200))}
-                placeholder={composerTab === "photo" ? (t("addCaption") ?? t("whatsOnMind")) : t("whatsOnMind")}
-                rows={composerTab === "text" ? 3 : 2}
-                autoFocus={composerTab === "text"}
-                className="w-full bg-input rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              />
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {composerTab === "photo" && previewImg && (
-                    <button
-                      onClick={() => { setPreviewImg(null); setPendingFile(null); fileRef.current?.click(); }}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition"
-                    >
-                      <ImageIcon className="w-4 h-4" />
-                      {t("addImage")}
-                    </button>
-                  )}
-                  <span className="text-xs text-muted-foreground">{draft.length}/200</span>
-                </div>
-                <button
-                  onClick={save}
-                  disabled={posting || (!draft.trim() && !pendingFile)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  {posting ? "…" : t("share")}
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">{t("disappears")}</p>
-            </div>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-        </div>
+      {/* ── Creation Menu ── */}
+      {composer.kind === "menu" && (
+        <CreationSheet
+          onText={() => setComposer({ kind: "text" })}
+          onPhoto={(file) => setComposer({ kind: "photo", file })}
+          onClose={() => setComposer({ kind: "none" })}
+          fileRef={fileRef}
+        />
       )}
 
-      {/* Viewer */}
+      {/* ── Text Composer ── */}
+      {composer.kind === "text" && (
+        <TextComposer
+          initialText={composer.initialText}
+          onSave={saveTextStatus}
+          onClose={() => setComposer({ kind: "none" })}
+          saving={posting}
+        />
+      )}
+
+      {/* ── Photo Composer ── */}
+      {composer.kind === "photo" && (
+        <PhotoComposer
+          file={composer.file}
+          onSave={(caption) => savePhotoStatus(composer.file, caption)}
+          onClose={() => setComposer({ kind: "none" })}
+          saving={posting}
+        />
+      )}
+
+      {/* ── StatusViewer ── */}
       {viewerStatuses && (
         <StatusViewer
           statuses={viewerStatuses}
