@@ -25,6 +25,7 @@ import {
   Download,
   FileText,
   ImageIcon,
+  ChevronLeft,
   Lock,
   Mic,
   MoreHorizontal,
@@ -34,7 +35,7 @@ import {
   PhoneOff,
   Play,
   Send,
-  Square,
+  Trash2,
   Users,
   Video,
   Video as VideoIcon,
@@ -87,6 +88,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   });
   const [lockPinInput, setLockPinInput] = useState("");
   const [lockPinError, setLockPinError] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
 
   // Reset lock state whenever the active chat changes
   useEffect(() => {
@@ -490,7 +492,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
         <div className="max-w-2xl mx-auto flex items-end gap-2">
 
           {/* Attach button + dropdown */}
-          <div className="relative">
+          {!isRecording && <div className="relative">
             <button
               title="Attach"
               onClick={() => setShowAttachMenu((v) => !v)}
@@ -556,11 +558,12 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                 </div>
               </>
             )}
-          </div>
+          </div>}
 
           {/* Voice recorder */}
           <AudioRecorder
             t={t}
+            onActiveChange={setIsRecording}
             onRecorded={async (blob) => {
               setUploadHint(`${t("uploading")} ${t("voiceMessage")}...`);
               try {
@@ -596,6 +599,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             }}
           />
 
+          {!isRecording && <>
           <textarea
             value={text}
             onChange={(e) => handleTyping(e.target.value)}
@@ -613,7 +617,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             className="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00] flex items-center justify-center text-white shadow-lg disabled:opacity-40 hover:scale-105 active:scale-95 transition"
           >
             <Send className="w-5 h-5" />
-          </button>
+          </button></>}
         </div>
       </footer>
     </section>
@@ -930,50 +934,58 @@ function AudioPlayer({ src, name, isMine }: { src: string; name?: string; isMine
 }
 
 /* ─── AudioRecorder ───────────────────────────────────────────────────────── */
+type RecMode = "idle" | "hold" | "locked" | "paused";
+
 function AudioRecorder({
-  onRecorded, t,
+  onRecorded, t, onActiveChange,
 }: {
   onRecorded: (blob: Blob) => void | Promise<void>;
   t: (key: string) => string;
+  onActiveChange?: (active: boolean) => void;
 }) {
   const BAR_COUNT = 28;
-  const [recording, setRecording] = useState(false);
-  const [seconds,   setSeconds]   = useState(0);
-  const [bars, setBars] = useState<number[]>(Array(BAR_COUNT).fill(4));
+  const [mode, setMode]         = useState<RecMode>("idle");
+  const [seconds, setSeconds]   = useState(0);
+  const [bars, setBars]         = useState<number[]>(Array(BAR_COUNT).fill(4));
+  const [dragOffset, setDragOffset] = useState(0);
+
   const recRef         = useRef<MediaRecorder | null>(null);
   const chunksRef      = useRef<Blob[]>([]);
+  const streamRef      = useRef<MediaStream | null>(null);
+  const mimeTypeRef    = useRef<string>("audio/webm");
+  const shouldSendRef  = useRef(false);
   const timerRef       = useRef<number | null>(null);
   const analyserRef    = useRef<AnalyserNode | null>(null);
   const audioCtxRef    = useRef<AudioContext | null>(null);
   const animRef        = useRef<number | null>(null);
   const hasAnalyserRef = useRef(false);
   const phaseRef       = useRef(0);
+  const dragStartXRef  = useRef<number | null>(null);
+
+  function changeMode(m: RecMode) {
+    setMode(m);
+    onActiveChange?.(m !== "idle");
+  }
 
   function animateBars() {
     if (hasAnalyserRef.current && analyserRef.current) {
-      // Real frequency data from microphone
       const data = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(data);
       const step = Math.max(1, Math.floor(data.length / BAR_COUNT));
-      setBars(
-        Array.from({ length: BAR_COUNT }, (_, i) => {
-          const raw = data[Math.min(i * step, data.length - 1)] / 255;
-          return Math.max(3, Math.round(raw * 32));
-        }),
-      );
+      setBars(Array.from({ length: BAR_COUNT }, (_, i) => {
+        const raw = data[Math.min(i * step, data.length - 1)] / 255;
+        return Math.max(3, Math.round(raw * 32));
+      }));
     } else {
-      // Fallback: smooth pseudo-random wave animation
       phaseRef.current += 0.18;
       const p = phaseRef.current;
-      setBars(
-        Array.from({ length: BAR_COUNT }, (_, i) => {
-          const wave =
-            Math.sin(p + i * 0.45) * 0.4 +
-            Math.sin(p * 1.3 + i * 0.7) * 0.35 +
-            Math.sin(p * 0.7 + i * 0.25) * 0.25;
-          return Math.max(3, Math.round(((wave + 1) / 2) * 28 + 4));
-        }),
-      );
+      setBars(Array.from({ length: BAR_COUNT }, (_, i) => {
+        const wave =
+          Math.sin(p + i * 0.45) * 0.4 +
+          Math.sin(p * 1.3 + i * 0.7) * 0.35 +
+          Math.sin(p * 0.7 + i * 0.25) * 0.25;
+        return Math.max(3, Math.round(((wave + 1) / 2) * 28 + 4));
+      }));
     }
     animRef.current = requestAnimationFrame(animateBars);
   }
@@ -983,6 +995,7 @@ function AudioRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
+      streamRef.current = stream;
       hasAnalyserRef.current = false;
       try {
         const ctx = new AudioContext();
@@ -992,13 +1005,15 @@ function AudioRecorder({
         audioCtxRef.current = ctx;
         analyserRef.current = analyser;
         hasAnalyserRef.current = true;
-      } catch { /* fallback to animated wave */ }
+      } catch { /* fallback wave */ }
       animRef.current = requestAnimationFrame(animateBars);
 
-      const candidates = ["audio/mp4","audio/aac","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+      const candidates = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
       const mimeType = candidates.find(
         (c) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(c),
       );
+      mimeTypeRef.current = mimeType ?? "audio/webm";
+
       const rec = mimeType
         ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 })
         : new MediaRecorder(stream);
@@ -1006,81 +1021,181 @@ function AudioRecorder({
       chunksRef.current = [];
       rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
       rec.onstop = () => {
-        const type = mimeType || rec.mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type });
-        stream.getTracks().forEach((tr) => tr.stop());
-        onRecorded(blob);
-        setSeconds(0);
-        if (animRef.current) cancelAnimationFrame(animRef.current);
-        audioCtxRef.current?.close().catch(() => {});
-        hasAnalyserRef.current = false;
-        setBars(Array(BAR_COUNT).fill(4));
+        streamRef.current?.getTracks().forEach((tr) => tr.stop());
+        if (shouldSendRef.current && chunksRef.current.length > 0) {
+          onRecorded(new Blob(chunksRef.current, { type: mimeTypeRef.current }));
+        }
       };
       rec.start(250);
-      setRecording(true);
+      shouldSendRef.current = false;
+      changeMode("hold");
       setSeconds(0);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch { alert(t("micDenied")); }
   }
 
-  function stop() {
-    recRef.current?.stop();
-    setRecording(false);
+  function stopCleanup() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (animRef.current)  { cancelAnimationFrame(animRef.current); animRef.current = null; }
+    audioCtxRef.current?.close().catch(() => {});
+    hasAnalyserRef.current = false;
+    setBars(Array(BAR_COUNT).fill(4));
+    setDragOffset(0);
+  }
+
+  function stopAndSend() {
+    shouldSendRef.current = true;
+    const rec = recRef.current;
+    stopCleanup();
+    if (rec && rec.state !== "inactive") rec.stop();
+    else streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    changeMode("idle");
+    setSeconds(0);
+  }
+
+  function cancelRecording() {
+    shouldSendRef.current = false;
+    const rec = recRef.current;
+    stopCleanup();
+    if (rec && rec.state !== "inactive") rec.stop();
+    else streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    changeMode("idle");
+    setSeconds(0);
+  }
+
+  function togglePause() {
+    const rec = recRef.current;
+    if (!rec) return;
+    if (mode === "locked") {
+      if (rec.state === "recording") rec.pause();
+      changeMode("paused");
+    } else if (mode === "paused") {
+      if (rec.state === "paused") rec.resume();
+      changeMode("locked");
+    }
   }
 
   function fmt(s: number) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
-  if (recording) {
-    return (
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {/* Stop button */}
-        <button
-          onClick={stop}
-          title={t("stopRecording")}
-          className="w-9 h-9 rounded-full bg-destructive flex items-center justify-center shrink-0 active:scale-90 transition"
-        >
-          <Square className="w-3.5 h-3.5 text-white" />
-        </button>
+  function onDragStart(e: React.PointerEvent) {
+    dragStartXRef.current = e.clientX;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
 
-        {/* Timer */}
+  function onDragMove(e: React.PointerEvent) {
+    if (dragStartXRef.current === null) return;
+    const dx = e.clientX - dragStartXRef.current;
+    if (dx < 0) setDragOffset(dx);
+    if (dx < -90) cancelRecording();
+  }
+
+  function onDragEnd() {
+    dragStartXRef.current = null;
+    setDragOffset(0);
+  }
+
+  /* ── Idle ── */
+  if (mode === "idle") {
+    return (
+      <button
+        onClick={start}
+        title={t("voiceMessage")}
+        className="hover:bg-white/5 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition"
+      >
+        <Mic className="w-5 h-5 text-primary" />
+      </button>
+    );
+  }
+
+  /* ── Hold (slide-to-cancel) ── */
+  if (mode === "hold") {
+    return (
+      <div className="flex-1 flex items-center gap-2 min-w-0 select-none">
+        {/* Pulse dot + timer */}
+        <span className="w-2.5 h-2.5 rounded-full bg-destructive shrink-0 animate-pulse" />
         <span className="text-xs font-mono tabular-nums text-destructive font-semibold shrink-0 w-10">
           {fmt(seconds)}
         </span>
 
-        {/* Waveform bars — centered vertically */}
-        <div className="flex items-center gap-[2px] h-9 flex-1 overflow-hidden">
-          {bars.map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-full bg-primary transition-none"
-              style={{
-                height: `${h}px`,
-                maxHeight: "32px",
-                minHeight: "3px",
-                opacity: 0.7 + (h / 36) * 0.3,
-              }}
-            />
-          ))}
+        {/* Swipe-to-cancel — draggable */}
+        <div
+          className="flex-1 flex items-center gap-0.5 cursor-grab active:cursor-grabbing touch-none overflow-hidden"
+          style={{
+            transform: `translateX(${dragOffset}px)`,
+            transition: dragOffset === 0 ? "transform 0.2s ease" : "none",
+            opacity: Math.max(0.25, 1 + dragOffset / 160),
+          }}
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        >
+          <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0" />
+          <ChevronLeft className="w-4 h-4 text-muted-foreground/40 shrink-0 -ml-2.5" />
+          <span className="text-sm text-muted-foreground truncate ml-0.5">
+            {t("slideToCancel")}
+          </span>
         </div>
 
-        {/* Mic icon pulsing */}
-        <span className="w-2 h-2 rounded-full bg-destructive shrink-0 animate-pulse" />
+        {/* Lock button */}
+        <button
+          onClick={() => changeMode("locked")}
+          className="w-9 h-9 rounded-full border border-border bg-card/80 flex items-center justify-center shrink-0 hover:bg-white/10 active:scale-90 transition"
+        >
+          <Lock className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
     );
   }
 
+  /* ── Locked / Paused ── */
   return (
-    <button
-      onClick={start}
-      title={t("voiceMessage")}
-      className="hover:bg-white/5 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition"
-    >
-      <Mic className="w-5 h-5 text-primary" />
-    </button>
+    <div className="flex-1 flex flex-col gap-1 min-w-0 py-0.5">
+      {/* Waveform row */}
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-destructive shrink-0 animate-pulse" />
+        <span className="text-xs font-mono tabular-nums text-destructive font-semibold shrink-0 w-10">
+          {fmt(seconds)}
+        </span>
+        <div className="flex items-center gap-[2px] h-7 flex-1 overflow-hidden">
+          {bars.map((h, i) => (
+            <div
+              key={i}
+              className={`flex-1 rounded-full transition-none ${mode === "paused" ? "bg-muted-foreground/40" : "bg-primary"}`}
+              style={{ height: `${h}px`, maxHeight: "24px", minHeight: "2px", opacity: 0.55 + (h / 36) * 0.45 }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Action row: trash | pause/resume | send */}
+      <div className="flex items-center justify-between px-1">
+        <button
+          onClick={cancelRecording}
+          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-destructive/10 active:scale-90 transition"
+        >
+          <Trash2 className="w-5 h-5 text-destructive" />
+        </button>
+
+        <button
+          onClick={togglePause}
+          className="w-11 h-11 rounded-full border-2 border-destructive flex items-center justify-center hover:bg-destructive/10 active:scale-90 transition"
+        >
+          {mode === "paused"
+            ? <Play  className="w-5 h-5 text-destructive ml-0.5" />
+            : <Pause className="w-5 h-5 text-destructive" />}
+        </button>
+
+        <button
+          onClick={stopAndSend}
+          className="w-11 h-11 rounded-full bg-gradient-to-br from-[#25D366] to-[#128C7E] flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition"
+        >
+          <Send className="w-5 h-5 text-white" />
+        </button>
+      </div>
+    </div>
   );
 }
 
