@@ -440,21 +440,40 @@ export async function getSharedMedia(chatId: string): Promise<MessageDoc[]> {
     .filter((m) => ["image", "video", "file", "audio"].includes(m.type));
 }
 
-export async function getGroupInfo(chatId: string): Promise<{ name: string | null; avatarUrl: string | null; createdBy: string | null }> {
+export async function getGroupInfo(chatId: string): Promise<{ name: string | null; avatarUrl: string | null; createdBy: string | null; description: string | null }> {
   const { data } = await supabase
     .from("chats")
-    .select("name, avatar_url, created_by")
+    .select("name, avatar_url, created_by, description")
     .eq("id", chatId)
     .single();
-  if (!data) return { name: null, avatarUrl: null, createdBy: null };
+  if (!data) return { name: null, avatarUrl: null, createdBy: null, description: null };
   return {
     name: (data.name as string) ?? null,
     avatarUrl: (data.avatar_url as string) ?? null,
     createdBy: (data.created_by as string) ?? null,
+    description: (data.description as string) ?? null,
   };
 }
 
-export async function updateGroupInfo(chatId: string, updates: { name?: string; avatar_url?: string }) {
+export async function updateGroupInfo(chatId: string, updates: { name?: string; avatar_url?: string; description?: string }) {
   const { error } = await supabase.from("chats").update(updates).eq("id", chatId);
+  if (error) throw error;
+}
+
+export async function getMessages(chatId: string): Promise<MessageDoc[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("chat_id", chatId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => rowToMessage(r as Record<string, unknown>, chatId));
+}
+
+export async function clearGroupMessages(chatId: string): Promise<void> {
+  const { error } = await supabase
+    .from("messages")
+    .delete()
+    .eq("chat_id", chatId);
   if (error) throw error;
 }
