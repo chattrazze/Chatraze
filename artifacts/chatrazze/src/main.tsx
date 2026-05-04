@@ -43,12 +43,12 @@ function MissingConfig() {
     }}>
       <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>Configuration Missing</h1>
       <p style={{ color: "#9ca3af", marginBottom: "1.5rem" }}>
-        Add these environment variables in your Cloudflare Pages dashboard:
+        These variables are required at build time. After saving them in Cloudflare Pages, trigger a new deployment.
       </p>
       <pre style={{
         background: "#1a1a1a", padding: "1rem", borderRadius: "8px",
         fontSize: "0.9rem", color: "#34d399", textAlign: "left",
-      }}>{`VITE_SUPABASE_URL=https://xxxx.supabase.co\nVITE_SUPABASE_ANON_KEY=your-anon-key`}</pre>
+      }}>{`VITE_SUPABASE_URL\nVITE_SUPABASE_ANON_KEY`}</pre>
     </div>
   );
 }
