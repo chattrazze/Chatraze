@@ -470,10 +470,66 @@ export async function getMessages(chatId: string): Promise<MessageDoc[]> {
   return (data ?? []).map((r) => rowToMessage(r as Record<string, unknown>, chatId));
 }
 
-export async function clearGroupMessages(chatId: string): Promise<void> {
-  const { error } = await supabase
-    .from("messages")
-    .delete()
-    .eq("chat_id", chatId);
+export async function clearGroupMessages(chatId: string, adminUid: string): Promise<void> {
+  const { data: chatData } = await supabase
+    .from("chats")
+    .select("created_by")
+    .eq("id", chatId)
+    .single();
+  const createdBy = (chatData as Record<string, unknown> | null)?.created_by as string | null;
+  if (!createdBy || createdBy !== adminUid) {
+    throw new Error("Only the group admin can clear all messages.");
+  }
+  const { error } = await supabase.from("messages").delete().eq("chat_id", chatId);
   if (error) throw error;
+}
+
+export async function getOrCreateInviteToken(chatId: string): Promise<string> {
+  try {
+    const { data } = await supabase.from("chats").select("invite_token").eq("id", chatId).single();
+    const existing = (data as Record<string, unknown> | null)?.invite_token as string | null;
+    if (existing) return existing;
+    const token = crypto.randomUUID();
+    await supabase.from("chats").update({ invite_token: token }).eq("id", chatId);
+    return token;
+  } catch {
+    return chatId;
+  }
+}
+
+export async function updateGroupSelfDestruct(chatId: string, secs: number): Promise<void> {
+  try {
+    await supabase.from("chats").update({ self_destruct_timer: secs }).eq("id", chatId);
+  } catch {
+    // column may not exist yet — swallow silently
+  }
+}
+
+export async function isStarredChat(chatId: string, uid: string): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("starred_chats")
+      .select("chat_id")
+      .eq("chat_id", chatId)
+      .eq("user_id", uid)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
+export async function toggleStarredChat(chatId: string, uid: string): Promise<boolean> {
+  try {
+    const starred = await isStarredChat(chatId, uid);
+    if (starred) {
+      await supabase.from("starred_chats").delete().eq("chat_id", chatId).eq("user_id", uid);
+      return false;
+    } else {
+      await supabase.from("starred_chats").insert({ chat_id: chatId, user_id: uid });
+      return true;
+    }
+  } catch {
+    return false;
+  }
 }

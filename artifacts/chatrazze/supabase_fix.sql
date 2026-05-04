@@ -211,5 +211,51 @@ CREATE POLICY "Users can delete own status" ON statuses
   FOR DELETE USING (auth.uid()::text = user_id);
 
 -- ============================================================
+-- 7. EXTRA GROUP COLUMNS (safe to re-run)
+-- ============================================================
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS invite_token        TEXT    DEFAULT NULL;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS self_destruct_timer INTEGER DEFAULT 0;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS description         TEXT    DEFAULT NULL;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS name                TEXT    DEFAULT NULL;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS avatar_url          TEXT    DEFAULT NULL;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by          TEXT    DEFAULT NULL;
+
+-- ============================================================
+-- 8. STARRED CHATS TABLE
+-- ============================================================
+CREATE TABLE IF NOT EXISTS starred_chats (
+  user_id    TEXT        NOT NULL,
+  chat_id    TEXT        NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, chat_id)
+);
+
+ALTER TABLE starred_chats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read their starred chats"   ON starred_chats;
+DROP POLICY IF EXISTS "Users can manage their starred chats" ON starred_chats;
+
+CREATE POLICY "Users can read their starred chats" ON starred_chats
+  FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can manage their starred chats" ON starred_chats
+  FOR ALL USING (auth.uid()::text = user_id);
+
+-- ============================================================
+-- 9. ADMIN-ONLY MESSAGE DELETE POLICY
+-- Only the chat creator (admin) may bulk-delete all messages.
+-- ============================================================
+DROP POLICY IF EXISTS "Admin can clear group messages" ON messages;
+CREATE POLICY "Admin can clear group messages" ON messages
+  FOR DELETE USING (
+    auth.uid()::text = sender_id
+    OR EXISTS (
+      SELECT 1 FROM chats
+      WHERE chats.id = messages.chat_id
+        AND auth.uid()::text = chats.created_by
+    )
+  );
+
+-- ============================================================
 -- Done! Run this and then test your app.
 -- ============================================================

@@ -25,6 +25,7 @@ import {
   Download,
   FileText,
   ImageIcon,
+  Lock,
   Mic,
   MoreHorizontal,
   Paperclip,
@@ -78,6 +79,13 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   // "user" | "group" | null
   const [profilePage, setProfilePage] = useState<"user" | "group" | null>(null);
+  const [chatUnlocked, setChatUnlocked] = useState<boolean>(() => {
+    const pin = localStorage.getItem(`chatrazze:lock:${chatId}`);
+    if (!pin) return true;
+    return sessionStorage.getItem(`chatrazze:unlocked:${chatId}`) === "1";
+  });
+  const [lockPinInput, setLockPinInput] = useState("");
+  const [lockPinError, setLockPinError] = useState("");
   const lastMsgIdRef = useRef<string | null>(null);
   // Map uid → displayName for group members
   const [membersMap, setMembersMap] = useState<Record<string, string>>({});
@@ -247,6 +255,58 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     }
   }
 
+  const handleGroupMemberCall = (peerUid: string, peerName: string, kind: "voice" | "video") => {
+    if (!onCall) return;
+    onCall(
+      { uid: peerUid, displayName: peerName, email: null, phone: null, photoURL: null, isGroup: false, online: false },
+      kind as CallKind,
+    );
+  };
+
+  function handleUnlockChat() {
+    const pin = localStorage.getItem(`chatrazze:lock:${chatId}`);
+    if (!pin || lockPinInput === pin) {
+      sessionStorage.setItem(`chatrazze:unlocked:${chatId}`, "1");
+      setChatUnlocked(true);
+      setLockPinError("");
+    } else {
+      setLockPinError(t("wrongPIN"));
+    }
+  }
+
+  if (!chatUnlocked) {
+    return (
+      <section className="flex-1 flex flex-col h-full items-center justify-center p-8 gap-4">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <Lock className="w-8 h-8 text-primary" />
+        </div>
+        <h2 className="font-bold text-lg">{t("lockChat")}</h2>
+        <p className="text-sm text-muted-foreground text-center">{t("enterPIN")}</p>
+        <input
+          type="password"
+          inputMode="numeric"
+          maxLength={8}
+          value={lockPinInput}
+          onChange={(e) => setLockPinInput(e.target.value.replace(/\D/g, ""))}
+          onKeyDown={(e) => e.key === "Enter" && handleUnlockChat()}
+          placeholder="••••"
+          className="w-40 text-center text-lg font-mono tracking-widest bg-input border border-border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50"
+          autoFocus
+        />
+        {lockPinError && <p className="text-xs text-destructive">{lockPinError}</p>}
+        <button
+          onClick={handleUnlockChat}
+          className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 active:scale-95 transition"
+        >
+          {t("confirm")}
+        </button>
+        <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground transition">
+          {t("cancel")}
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="flex-1 flex flex-col h-full">
       {/* Header */}
@@ -317,6 +377,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           group={peer}
           onBack={() => setProfilePage(null)}
           onLeft={() => { setProfilePage(null); onBack(); }}
+          onInitiateCall={onCall ? handleGroupMemberCall : undefined}
         />
       )}
 

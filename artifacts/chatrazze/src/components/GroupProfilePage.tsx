@@ -8,10 +8,14 @@ import {
   getChatStats,
   getGroupInfo,
   getMessages,
+  getOrCreateInviteToken,
   getSharedMedia,
+  isStarredChat,
   leaveGroup,
   MessageDoc,
+  toggleStarredChat,
   updateGroupInfo,
+  updateGroupSelfDestruct,
 } from "@/lib/chatService";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -177,8 +181,8 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   const [pinStep, setPinStep] = useState<1 | 2>(1);
   const [pinError, setPinError] = useState("");
 
-  /* favorite */
-  const [isFav, setIsFav] = useState(() => user ? isChatFavorite(user.uid, chatId) : false);
+  /* favorite — loaded from DB on mount */
+  const [isFav, setIsFav] = useState(false);
 
   /* search in chat */
   const [showSearch, setShowSearch] = useState(false);
@@ -190,7 +194,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
 
   /* invite link / QR */
   const [showInvite, setShowInvite] = useState(false);
-  const inviteUrl = `${window.location.origin}${window.location.pathname}#invite:${chatId}`;
+  const [inviteUrl, setInviteUrl] = useState(`${window.location.origin}${window.location.pathname}#invite:${chatId}`);
 
   /* encryption info */
   const [showEncrypt, setShowEncrypt] = useState(false);
@@ -222,6 +226,11 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
       .then((r) => setMembers(r.filter((u): u is AppUser => !!u)))
       .catch(() => {});
   }, [memberIds.join(",")]);
+
+  useEffect(() => {
+    if (!user) return;
+    isStarredChat(chatId, user.uid).then(setIsFav).catch(() => {});
+  }, [chatId, user?.uid]);
 
   const isAdmin = !!user && user.uid === createdBy;
   const images  = useMemo(() => media.filter((m) => m.type === "image"), [media]);
@@ -289,10 +298,11 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     finally { setLeaving(false); }
   }
 
-  /* ── clear chat ───────────────────────────────────────── */
+  /* ── clear chat (admin only, verified server-side) ───────*/
   async function handleClearChat() {
+    if (!user) return;
     try {
-      await clearGroupMessages(chatId);
+      await clearGroupMessages(chatId, user.uid);
       setAllMessages([]);
       toast.show(t("chatCleared"));
     } catch { toast.show(t("couldNotSaveProfile")); }
@@ -322,11 +332,12 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     toast.show(t("unmute"));
   }
 
-  /* ── disappearing messages ────────────────────────────── */
-  function handleDisappear(secs: number) {
+  /* ── disappearing messages (localStorage + DB) ────────── */
+  async function handleDisappear(secs: number) {
     saveDisappearTimer(chatId, secs);
     setDisappearSecs(secs);
     toast.show(secs === 0 ? t("disappearOff") : secs === 86400 ? t("disappear24h") : secs === 604800 ? t("disappear7d") : t("disappear90d"));
+    await updateGroupSelfDestruct(chatId, secs).catch(() => {});
   }
 
   /* ── lock chat PIN ────────────────────────────────────── */
@@ -378,6 +389,13 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     if (showSearch) setTimeout(() => searchInputRef.current?.focus(), 50);
   }, [showSearch]);
 
+  useEffect(() => {
+    if (!showInvite) return;
+    getOrCreateInviteToken(chatId)
+      .then((token) => setInviteUrl(`${window.location.origin}${window.location.pathname}#join/${token}`))
+      .catch(() => {});
+  }, [showInvite, chatId]);
+
   /* ── add member ───────────────────────────────────────── */
   function handleMemberAdded(newUid: string, newUser: AppUser) {
     const next = [...memberIds, newUid];
@@ -386,12 +404,16 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     onMemberAdded?.(next);
   }
 
-  /* ── favorite ─────────────────────────────────────────── */
-  function handleFavorite() {
+  /* ── favorite (DB-backed via starred_chats) ───────────── */
+  async function handleFavorite() {
     if (!user) return;
-    const now = toggleChatFavorite(user.uid, chatId);
-    setIsFav(now);
-    toast.show(now ? t("markFavorite") : t("removeFavorite"));
+    try {
+      const now = await toggleStarredChat(chatId, user.uid);
+      setIsFav(now);
+      toast.show(now ? t("markFavorite") : t("removeFavorite"));
+    } catch {
+      toast.show(t("couldNotSaveProfile"));
+    }
   }
 
   /* ── copy invite link ─────────────────────────────────── */
@@ -410,6 +432,23 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
     disappearSecs === 0 ? t("disappearOff") :
     disappearSecs === 86400 ? t("disappear24h") :
     disappearSecs === 604800 ? t("disappear7d") : t("disappear90d");
+
+  function HighlightText({ text, query }: { text: string; query: string }) {
+    if (!query.trim()) return <>{text}</>;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={i} className="bg-yellow-400/40 text-foreground rounded px-0.5">{part}</mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden">
@@ -849,7 +888,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
                     <p className="text-xs font-semibold">{sender?.displayName ?? m.senderId.slice(0, 8)}</p>
                     <p className="text-xs text-muted-foreground ml-auto">{m.createdAt ? new Date(m.createdAt).toLocaleString() : ""}</p>
                   </div>
-                  <p className="text-sm">{m.text}</p>
+                  <p className="text-sm"><HighlightText text={m.text ?? ""} query={searchQ} /></p>
                 </div>
               );
             })}
