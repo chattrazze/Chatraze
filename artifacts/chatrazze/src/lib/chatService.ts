@@ -514,51 +514,68 @@ export async function clearGroupMessages(chatId: string, adminUid: string): Prom
 }
 
 export async function getOrCreateInviteToken(chatId: string): Promise<string> {
-  try {
-    const { data } = await supabase.from("chats").select("invite_token").eq("id", chatId).single();
-    const existing = (data as Record<string, unknown> | null)?.invite_token as string | null;
-    if (existing) return existing;
-    const token = crypto.randomUUID();
-    await supabase.from("chats").update({ invite_token: token }).eq("id", chatId);
-    return token;
-  } catch {
-    return chatId;
+  const { data, error: fetchErr } = await supabase
+    .from("chats")
+    .select("invite_token")
+    .eq("id", chatId)
+    .single();
+  if (fetchErr) {
+    console.error("[chatService] getOrCreateInviteToken fetch error:", fetchErr);
+    throw fetchErr;
   }
+  const existing = (data as Record<string, unknown> | null)?.invite_token as string | null;
+  if (existing) return existing;
+  const token = crypto.randomUUID();
+  const { error: updateErr } = await supabase
+    .from("chats")
+    .update({ invite_token: token })
+    .eq("id", chatId);
+  if (updateErr) {
+    console.error("[chatService] getOrCreateInviteToken update error:", updateErr);
+    throw updateErr;
+  }
+  return token;
+}
+
+export async function getGroupSelfDestruct(chatId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("chats")
+    .select("self_destruct_timer")
+    .eq("id", chatId)
+    .single();
+  if (error) {
+    console.error("[chatService] getGroupSelfDestruct error:", error);
+    return 0;
+  }
+  return (data as Record<string, unknown>)?.self_destruct_timer as number ?? 0;
 }
 
 export async function updateGroupSelfDestruct(chatId: string, secs: number): Promise<void> {
-  try {
-    await supabase.from("chats").update({ self_destruct_timer: secs }).eq("id", chatId);
-  } catch {
-    // column may not exist yet — swallow silently
-  }
+  const { error } = await supabase.from("chats").update({ self_destruct_timer: secs }).eq("id", chatId);
+  if (error) throw error;
 }
 
 export async function isStarredChat(chatId: string, uid: string): Promise<boolean> {
-  try {
-    const { data } = await supabase
-      .from("starred_chats")
-      .select("chat_id")
-      .eq("chat_id", chatId)
-      .eq("user_id", uid)
-      .maybeSingle();
-    return !!data;
-  } catch {
+  const { data, error } = await supabase
+    .from("chat_members")
+    .select("starred_chats")
+    .eq("chat_id", chatId)
+    .eq("user_id", uid)
+    .maybeSingle();
+  if (error) {
+    console.error("[chatService] isStarredChat error:", error);
     return false;
   }
+  return (data as Record<string, unknown> | null)?.starred_chats === true;
 }
 
 export async function toggleStarredChat(chatId: string, uid: string): Promise<boolean> {
-  try {
-    const starred = await isStarredChat(chatId, uid);
-    if (starred) {
-      await supabase.from("starred_chats").delete().eq("chat_id", chatId).eq("user_id", uid);
-      return false;
-    } else {
-      await supabase.from("starred_chats").insert({ chat_id: chatId, user_id: uid });
-      return true;
-    }
-  } catch {
-    return false;
-  }
+  const current = await isStarredChat(chatId, uid);
+  const next = !current;
+  const { error } = await supabase.from("chat_members").upsert(
+    { chat_id: chatId, user_id: uid, starred_chats: next },
+    { onConflict: "chat_id,user_id" },
+  );
+  if (error) throw error;
+  return next;
 }

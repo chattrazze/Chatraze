@@ -213,7 +213,7 @@ CREATE POLICY "Users can delete own status" ON statuses
 -- ============================================================
 -- 7. EXTRA GROUP COLUMNS (safe to re-run)
 -- ============================================================
-ALTER TABLE chats    ADD COLUMN IF NOT EXISTS invite_token        TEXT        DEFAULT NULL;
+ALTER TABLE chats    ADD COLUMN IF NOT EXISTS invite_token        UUID        DEFAULT NULL;
 ALTER TABLE chats    ADD COLUMN IF NOT EXISTS self_destruct_timer INTEGER     DEFAULT 0;
 ALTER TABLE chats    ADD COLUMN IF NOT EXISTS description         TEXT        DEFAULT NULL;
 ALTER TABLE chats    ADD COLUMN IF NOT EXISTS name                TEXT        DEFAULT NULL;
@@ -222,24 +222,32 @@ ALTER TABLE chats    ADD COLUMN IF NOT EXISTS created_by          TEXT        DE
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at          TIMESTAMPTZ DEFAULT NULL;
 
 -- ============================================================
--- 8. STARRED CHATS TABLE
+-- 8. CHAT_MEMBERS TABLE (starred_chats column per spec)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS starred_chats (
-  user_id    TEXT        NOT NULL,
-  chat_id    TEXT        NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  PRIMARY KEY (user_id, chat_id)
+CREATE TABLE IF NOT EXISTS chat_members (
+  chat_id       TEXT        NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+  user_id       TEXT        NOT NULL,
+  starred_chats BOOLEAN     NOT NULL DEFAULT FALSE,
+  joined_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (chat_id, user_id)
 );
 
-ALTER TABLE starred_chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_members ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can read their starred chats"   ON starred_chats;
-DROP POLICY IF EXISTS "Users can manage their starred chats" ON starred_chats;
+DROP POLICY IF EXISTS "Members can read chat_members"      ON chat_members;
+DROP POLICY IF EXISTS "Members can manage their own row"   ON chat_members;
 
-CREATE POLICY "Users can read their starred chats" ON starred_chats
-  FOR SELECT USING (auth.uid()::text = user_id);
+CREATE POLICY "Members can read chat_members" ON chat_members
+  FOR SELECT USING (
+    auth.uid()::text = user_id
+    OR EXISTS (
+      SELECT 1 FROM chats
+      WHERE chats.id = chat_id
+        AND auth.uid()::text = ANY(chats.members)
+    )
+  );
 
-CREATE POLICY "Users can manage their starred chats" ON starred_chats
+CREATE POLICY "Members can manage their own row" ON chat_members
   FOR ALL USING (auth.uid()::text = user_id);
 
 -- ============================================================

@@ -8,6 +8,7 @@ import {
   getChatStats,
   getGroupInfo,
   getMessages,
+  getGroupSelfDestruct,
   getOrCreateInviteToken,
   getSharedMedia,
   isStarredChat,
@@ -82,22 +83,6 @@ function saveChatLockPIN(chatId: string, pin: string | null) {
   if (pin === null) localStorage.removeItem(`chatrazze:lock:${chatId}`);
   else localStorage.setItem(`chatrazze:lock:${chatId}`, pin);
 }
-function isChatFavorite(uid: string, chatId: string): boolean {
-  try {
-    const favs: string[] = JSON.parse(localStorage.getItem(`chatrazze:favorites:${uid}`) ?? "[]");
-    return favs.includes(chatId);
-  } catch { return false; }
-}
-function toggleChatFavorite(uid: string, chatId: string): boolean {
-  try {
-    const favs: string[] = JSON.parse(localStorage.getItem(`chatrazze:favorites:${uid}`) ?? "[]");
-    const idx = favs.indexOf(chatId);
-    if (idx > -1) favs.splice(idx, 1); else favs.push(chatId);
-    localStorage.setItem(`chatrazze:favorites:${uid}`, JSON.stringify(favs));
-    return favs.includes(chatId);
-  } catch { return false; }
-}
-
 function exportAsText(msgs: MessageDoc[], members: AppUser[], groupName: string): void {
   const nameMap = Object.fromEntries(members.map((m) => [m.uid, m.displayName]));
   const lines = msgs.map((m) => {
@@ -170,8 +155,14 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   const [mutedUntil, setMutedUntil] = useState<number | null>(() => getMutedUntil(chatId));
   const isMuted = mutedUntil !== null && Date.now() < mutedUntil;
 
-  /* disappearing messages */
-  const [disappearSecs, setDisappearSecs] = useState<number>(() => getDisappearTimer(chatId));
+  /* disappearing messages — loaded from DB on mount */
+  const [disappearSecs, setDisappearSecs] = useState<number>(0);
+
+  /* members expandable section */
+  const [showAllMembers, setShowAllMembers] = useState(false);
+
+  /* bottom action sheet */
+  const [showActionSheet, setShowActionSheet] = useState(false);
 
   /* lock chat */
   const [lockPIN, setLockPIN] = useState<string | null>(() => getChatLockPIN(chatId));
@@ -210,14 +201,15 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
 
   /* ── init ─────────────────────────────────────────────── */
   useEffect(() => {
-    getChatStats(chatId).then(setStats).catch(() => {});
-    getSharedMedia(chatId).then(setMedia).catch(() => {});
+    getChatStats(chatId).then(setStats).catch((e) => console.error("[GroupProfile] stats:", e));
+    getSharedMedia(chatId).then(setMedia).catch((e) => console.error("[GroupProfile] media:", e));
     getGroupInfo(chatId).then((info) => {
       if (info.createdBy) setCreatedBy(info.createdBy);
       if (info.avatarUrl) setGroupAvatarUrl(info.avatarUrl);
       if (info.name) setEditName(info.name);
       if (info.description) { setGroupDescription(info.description); setEditDesc(info.description); }
-    }).catch(() => {});
+    }).catch((e) => console.error("[GroupProfile] groupInfo:", e));
+    getGroupSelfDestruct(chatId).then(setDisappearSecs).catch((e) => console.error("[GroupProfile] selfDestruct:", e));
   }, [chatId]);
 
   useEffect(() => {
@@ -696,7 +688,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
               <p className="text-sm text-muted-foreground text-center py-4">{t("loadingMembers")}</p>
             )}
 
-            {filteredMembers.map((m) => {
+            {(memberSearchQ ? filteredMembers : (showAllMembers ? filteredMembers : filteredMembers.slice(0, 5))).map((m) => {
               const isMe = m.uid === user?.uid;
               const isMemberAdmin = m.uid === createdBy;
               return (
@@ -738,6 +730,21 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
                 </div>
               );
             })}
+
+            {/* Expand / collapse all members */}
+            {!memberSearchQ && filteredMembers.length > 5 && (
+              <button
+                onClick={() => setShowAllMembers((v) => !v)}
+                className="w-full flex items-center justify-between glass rounded-2xl px-4 py-3 hover:bg-white/5 transition text-primary"
+              >
+                <span className="text-sm font-semibold">
+                  {showAllMembers
+                    ? t("showLessMembers")
+                    : `${t("viewAllMembers")} (${filteredMembers.length})`}
+                </span>
+                <ChevronRight className={`w-4 h-4 transition-transform ${showAllMembers ? "rotate-90" : ""}`} />
+              </button>
+            )}
           </div>
         )}
 
@@ -794,60 +801,86 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
           </div>
         )}
 
-        {/* ── Bottom action buttons ── */}
-        <div className="px-5 pb-8 space-y-2.5">
-          {/* Favorite */}
+        {/* ── Open action sheet trigger ── */}
+        <div className="px-5 pb-8">
           <button
-            onClick={handleFavorite}
-            className="w-full flex items-center gap-3 glass rounded-2xl px-4 py-3.5 hover:bg-white/5 transition"
+            onClick={() => setShowActionSheet(true)}
+            className="w-full flex items-center justify-center gap-2 glass rounded-2xl px-4 py-3.5 hover:bg-white/5 transition text-foreground border border-border"
           >
-            <Star className={`w-5 h-5 ${isFav ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
-            <span className="text-sm font-medium">{isFav ? t("removeFavorite") : t("markFavorite")}</span>
-          </button>
-
-          {/* Export */}
-          <button
-            onClick={handleExport}
-            disabled={loadingSearch}
-            className="w-full flex items-center gap-3 glass rounded-2xl px-4 py-3.5 hover:bg-white/5 transition disabled:opacity-50"
-          >
-            <Download className="w-5 h-5 text-muted-foreground" />
-            <span className="text-sm font-medium">{t("exportChat")}</span>
-          </button>
-
-          {/* Clear chat (admin only) */}
-          {isAdmin && (
-            <button
-              onClick={() => setConfirm({ msg: t("clearAllMsgs"), onOk: handleClearChat })}
-              className="w-full flex items-center gap-3 glass rounded-2xl px-4 py-3.5 hover:bg-orange-500/10 transition text-orange-400"
-            >
-              <Trash2 className="w-5 h-5" />
-              <span className="text-sm font-medium">{t("clearAllMsgs")}</span>
-            </button>
-          )}
-
-          {/* Leave group */}
-          <button
-            onClick={() => setConfirm({ msg: t("leaveGroup") + "?", onOk: handleLeave })}
-            disabled={leaving}
-            className="w-full flex items-center gap-3 glass rounded-2xl px-4 py-3.5 hover:bg-red-500/10 transition text-red-400 disabled:opacity-40"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-sm font-medium">{leaving ? t("leavingGroup") : t("leaveGroup")}</span>
-          </button>
-
-          {/* Report group */}
-          <button
-            onClick={() => { toast.show(t("reportSent")); }}
-            className="w-full flex items-center gap-3 glass rounded-2xl px-4 py-3.5 hover:bg-red-500/10 transition text-red-400"
-          >
-            <TriangleAlert className="w-5 h-5" />
-            <span className="text-sm font-medium">{t("reportGroup")}</span>
+            <TriangleAlert className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{t("moreActions")}</span>
           </button>
         </div>
       </div>
 
       {/* ════════════════ MODALS & OVERLAYS ════════════════ */}
+
+      {/* ── Bottom Action Sheet ── */}
+      {showActionSheet && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col justify-end"
+          onClick={() => setShowActionSheet(false)}
+        >
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative bg-card rounded-t-3xl border-t border-border pb-safe"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+            <div className="px-5 pt-2 pb-6 space-y-1">
+              {/* Favorite */}
+              <button
+                onClick={() => { setShowActionSheet(false); handleFavorite(); }}
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/5 transition"
+              >
+                <Star className={`w-5 h-5 ${isFav ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
+                <span className="text-sm font-medium">{isFav ? t("removeFavorite") : t("markFavorite")}</span>
+              </button>
+              {/* Export */}
+              <button
+                onClick={() => { setShowActionSheet(false); handleExport(); }}
+                disabled={loadingSearch}
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/5 transition disabled:opacity-50"
+              >
+                <Download className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm font-medium">{t("exportChat")}</span>
+              </button>
+              {/* Clear (admin) */}
+              {isAdmin && (
+                <button
+                  onClick={() => { setShowActionSheet(false); setConfirm({ msg: t("clearAllMsgs"), onOk: handleClearChat }); }}
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-orange-500/10 transition text-orange-400"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span className="text-sm font-medium">{t("clearAllMsgs")}</span>
+                </button>
+              )}
+              {/* Divider */}
+              <div className="h-px bg-border mx-4 my-1" />
+              {/* Leave */}
+              <button
+                onClick={() => { setShowActionSheet(false); setConfirm({ msg: t("leaveGroup") + "?", onOk: handleLeave }); }}
+                disabled={leaving}
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-red-500/10 transition text-red-400 disabled:opacity-40"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="text-sm font-medium">{leaving ? t("leavingGroup") : t("leaveGroup")}</span>
+              </button>
+              {/* Report */}
+              <button
+                onClick={() => { setShowActionSheet(false); toast.show(t("reportSent")); }}
+                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-red-500/10 transition text-red-400"
+              >
+                <TriangleAlert className="w-5 h-5" />
+                <span className="text-sm font-medium">{t("reportGroup")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Lightbox ── */}
       {lightbox && (
