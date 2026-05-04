@@ -593,6 +593,23 @@ export async function updateGroupSelfDestruct(chatId: string, _adminUid: string,
   if (error) throw error;
 }
 
+export async function getStarredChats(uid: string): Promise<ChatDoc[]> {
+  const { data: members, error: membersErr } = await supabase
+    .from("chat_members")
+    .select("chat_id")
+    .eq("user_id", uid)
+    .eq("starred_chats", true);
+  if (membersErr || !members?.length) return [];
+  const ids = members.map((m) => (m as Record<string, unknown>).chat_id as string);
+  const { data, error } = await supabase
+    .from("chats")
+    .select("*")
+    .in("id", ids)
+    .order("last_message_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []).map((r) => rowToChat(r as Record<string, unknown>));
+}
+
 export async function isStarredChat(chatId: string, uid: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("chat_members")

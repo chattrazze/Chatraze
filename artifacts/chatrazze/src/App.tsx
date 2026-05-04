@@ -275,7 +275,7 @@ function Shell() {
             }}
           />
         )}
-        {tab === "profile"     && <ProfileScreen />}
+        {tab === "profile"     && <ProfileScreen onGoToChat={(cid, p) => { setChatId(cid); setPeer(p); setTab("chats"); }} />}
       </main>
 
       {/* Mobile tabs */}
