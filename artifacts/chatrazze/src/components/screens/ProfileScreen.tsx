@@ -5,6 +5,7 @@ import { getUser, updateUserProfile, uploadAvatar } from "@/lib/userService";
 import { useToast } from "@/components/Toast";
 import { useTheme } from "@/hooks/useTheme";
 import { useLang } from "@/hooks/useLang";
+import { useChatBg, CHAT_BACKGROUNDS } from "@/hooks/useChatBg";
 import SettingsSheet, { SettingPanel } from "@/components/SettingsSheet";
 import Avatar from "@/components/Avatar";
 import {
@@ -16,10 +17,12 @@ import {
   LogOut,
   MessageCircle,
   Moon,
+  Palette,
   Pencil,
   Shield,
   Sun,
   UserCircle2,
+  X,
 } from "lucide-react";
 
 export default function ProfileScreen() {
@@ -32,6 +35,8 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [panel, setPanel] = useState<SettingPanel>(null);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const chatBg = useChatBg(user?.uid ?? "");
   const [photoURL, setPhotoURL] = useState<string | null>(
     user?.photoURL ?? null,
   );
@@ -209,6 +214,15 @@ export default function ProfileScreen() {
           <SettingRow icon={<MessageCircle className="w-5 h-5 text-primary" />} label={t("chatsSetting")} sub={t("chatsSettingSub")} onClick={() => setPanel("chats")} />
           <SettingRow icon={<Bell className="w-5 h-5 text-accent" />} label={t("notificationsSetting")} sub={t("notificationsSettingSub")} onClick={() => setPanel("notifications")} />
           <SettingRow icon={<Database className="w-5 h-5 text-secondary" />} label={t("storageDataSetting")} sub={t("storageDataSub")} onClick={() => setPanel("storage")} />
+          <SettingRow
+            icon={<Palette className="w-5 h-5 text-yellow-400" />}
+            label={t("chatBgTitle")}
+            sub={t("chatBgDesc")}
+            onClick={() => setShowBgPicker(true)}
+            preview={
+              <span className="w-6 h-6 rounded-full border border-white/20 shrink-0" style={chatBg.current.previewStyle} />
+            }
+          />
           <SettingRow icon={<KeyRound className="w-5 h-5 text-muted-foreground" />} label={`User ID: ${user.uid.slice(0, 10)}…`} sub={t("tapToCopyId")} onClick={() => { navigator.clipboard.writeText(user.uid); show(t("userIdCopied")); }} noChevron />
         </div>
 
@@ -225,11 +239,52 @@ export default function ProfileScreen() {
         </p>
       </div>
       <SettingsSheet panel={panel} onClose={() => setPanel(null)} />
+
+      {/* Chat Background Picker */}
+      {showBgPicker && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center">
+          <div className="glass w-full md:max-w-sm md:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden">
+            <header className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h2 className="font-semibold text-sm">{t("chatBgTitle")}</h2>
+              <button
+                onClick={() => setShowBgPicker(false)}
+                className="w-8 h-8 rounded-full hover:bg-white/5 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+            <div className="p-4 grid grid-cols-3 gap-3">
+              {CHAT_BACKGROUNDS.map((bg) => {
+                const isActive = chatBg.bgId === bg.id;
+                return (
+                  <button
+                    key={bg.id}
+                    onClick={() => { chatBg.setChatBg(bg.id); setShowBgPicker(false); }}
+                    className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition ${
+                      isActive ? "border-primary shadow-lg scale-105" : "border-transparent hover:border-white/20"
+                    }`}
+                  >
+                    <div className="w-full h-full" style={bg.previewStyle} />
+                    <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1 px-1">
+                      <p className="text-[10px] text-white font-medium text-center truncate">{bg.labelAr}</p>
+                    </div>
+                    {isActive && (
+                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                        <span className="text-white text-[8px] font-bold">✓</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SettingRow({ icon, label, sub, onClick, noChevron }: { icon: React.ReactNode; label: string; sub: string; onClick?: () => void; noChevron?: boolean; }) {
+function SettingRow({ icon, label, sub, onClick, noChevron, preview }: { icon: React.ReactNode; label: string; sub: string; onClick?: () => void; noChevron?: boolean; preview?: React.ReactNode; }) {
   return (
     <button onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 active:scale-[0.99] transition text-left border-b border-border last:border-b-0">
       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">{icon}</div>
@@ -237,6 +292,7 @@ function SettingRow({ icon, label, sub, onClick, noChevron }: { icon: React.Reac
         <p className="text-sm font-medium truncate">{label}</p>
         <p className="text-xs text-muted-foreground truncate">{sub}</p>
       </div>
+      {preview}
       {!noChevron && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
     </button>
   );

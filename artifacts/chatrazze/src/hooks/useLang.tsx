@@ -127,6 +127,10 @@ const T = {
     endBtn:"End", cameraBtn:"Camera",
     loadingDots:"Loading...", members:"members", group:"Group",
     addedToGroup:"added to the group!",
+    chatBgTitle:"Chat Background", chatBgDesc:"Choose your chat wallpaper",
+    adminLabel:"Admin", editGroup:"Edit Group", groupPhoto:"Group Photo",
+    groupNameEdited:"Group name updated", groupPhotoUpdated:"Group photo updated",
+    addCaption:"Add caption...", storyText:"Text", storyCamera:"Photo", tapCameraToUpload:"Tap to upload photo",
   },
   ar: {
     status:"الحالة", calls:"المكالمات", communities:"المجموعات", chats:"المحادثات", profile:"الملف الشخصي",
@@ -241,6 +245,10 @@ const T = {
     endBtn:"إنهاء", cameraBtn:"كاميرا",
     loadingDots:"تحميل...", members:"أعضاء", group:"مجموعة",
     addedToGroup:"تمت الإضافة إلى المجموعة!",
+    chatBgTitle:"خلفية المحادثة", chatBgDesc:"اختر خلفية الدردشة",
+    adminLabel:"مشرف", editGroup:"تعديل المجموعة", groupPhoto:"صورة المجموعة",
+    groupNameEdited:"تم تحديث اسم المجموعة", groupPhotoUpdated:"تم تحديث صورة المجموعة",
+    addCaption:"أضف تعليقاً...", storyText:"نص", storyCamera:"صورة", tapCameraToUpload:"اضغط لرفع صورة",
   },
   fr: {
     status:"Statut", calls:"Appels", communities:"Communautés", chats:"Discussions", profile:"Profil",
@@ -352,6 +360,10 @@ const T = {
     endBtn:"Terminer", cameraBtn:"Caméra",
     loadingDots:"Chargement...", members:"membres", group:"Groupe",
     addedToGroup:"ajouté au groupe !",
+    chatBgTitle:"Fond de discussion", chatBgDesc:"Choisissez votre fond",
+    adminLabel:"Admin", editGroup:"Modifier le groupe", groupPhoto:"Photo du groupe",
+    groupNameEdited:"Nom du groupe mis à jour", groupPhotoUpdated:"Photo du groupe mise à jour",
+    addCaption:"Ajouter une légende...", storyText:"Texte", storyCamera:"Photo", tapCameraToUpload:"Appuyez pour télécharger",
   },
   es: {
     status:"Estado", calls:"Llamadas", communities:"Comunidades", chats:"Chats", profile:"Perfil",
@@ -463,6 +475,10 @@ const T = {
     endBtn:"Terminar", cameraBtn:"Cámara",
     loadingDots:"Cargando...", members:"miembros", group:"Grupo",
     addedToGroup:"¡agregado al grupo!",
+    chatBgTitle:"Fondo del chat", chatBgDesc:"Elige tu fondo",
+    adminLabel:"Admin", editGroup:"Editar grupo", groupPhoto:"Foto del grupo",
+    groupNameEdited:"Nombre del grupo actualizado", groupPhotoUpdated:"Foto del grupo actualizada",
+    addCaption:"Añadir descripción...", storyText:"Texto", storyCamera:"Foto", tapCameraToUpload:"Toca para subir foto",
   },
   de: {
     status:"Status", calls:"Anrufe", communities:"Gruppen", chats:"Chats", profile:"Profil",
@@ -574,6 +590,10 @@ const T = {
     endBtn:"Beenden", cameraBtn:"Kamera",
     loadingDots:"Laden...", members:"Mitglieder", group:"Gruppe",
     addedToGroup:"zur Gruppe hinzugefügt!",
+    chatBgTitle:"Chat-Hintergrund", chatBgDesc:"Wähle deinen Hintergrund",
+    adminLabel:"Admin", editGroup:"Gruppe bearbeiten", groupPhoto:"Gruppenfoto",
+    groupNameEdited:"Gruppenname aktualisiert", groupPhotoUpdated:"Gruppenfoto aktualisiert",
+    addCaption:"Beschriftung hinzufügen...", storyText:"Text", storyCamera:"Foto", tapCameraToUpload:"Tippen zum Hochladen",
   },
   pt: {
     status:"Status", calls:"Chamadas", communities:"Comunidades", chats:"Conversas", profile:"Perfil",
@@ -685,6 +705,10 @@ const T = {
     endBtn:"Encerrar", cameraBtn:"Câmera",
     loadingDots:"Carregando...", members:"membros", group:"Grupo",
     addedToGroup:"adicionado ao grupo!",
+    chatBgTitle:"Fundo do chat", chatBgDesc:"Escolha seu fundo",
+    adminLabel:"Admin", editGroup:"Editar grupo", groupPhoto:"Foto do grupo",
+    groupNameEdited:"Nome do grupo atualizado", groupPhotoUpdated:"Foto do grupo atualizada",
+    addCaption:"Adicionar legenda...", storyText:"Texto", storyCamera:"Foto", tapCameraToUpload:"Toque para carregar",
   },
   it: {
     status:"Stato", calls:"Chiamate", communities:"Comunità", chats:"Chat", profile:"Profilo",
@@ -796,6 +820,10 @@ const T = {
     endBtn:"Termina", cameraBtn:"Fotocamera",
     loadingDots:"Caricamento...", members:"membri", group:"Gruppo",
     addedToGroup:"aggiunto al gruppo!",
+    chatBgTitle:"Sfondo chat", chatBgDesc:"Scegli il tuo sfondo",
+    adminLabel:"Admin", editGroup:"Modifica gruppo", groupPhoto:"Foto del gruppo",
+    groupNameEdited:"Nome del gruppo aggiornato", groupPhotoUpdated:"Foto del gruppo aggiornata",
+    addCaption:"Aggiungi didascalia...", storyText:"Testo", storyCamera:"Foto", tapCameraToUpload:"Caricare foto",
   },
   tr: {
     status:"Durum", calls:"Aramalar", communities:"Topluluklar", chats:"Sohbetler", profile:"Profil",
@@ -907,6 +935,10 @@ const T = {
     endBtn:"Bitir", cameraBtn:"Kamera",
     loadingDots:"Yükleniyor...", members:"üye", group:"Grup",
     addedToGroup:"gruba eklendi!",
+    chatBgTitle:"Sohbet Arka Planı", chatBgDesc:"Arka planınızı seçin",
+    adminLabel:"Yönetici", editGroup:"Grubu düzenle", groupPhoto:"Grup fotoğrafı",
+    groupNameEdited:"Grup adı güncellendi", groupPhotoUpdated:"Grup fotoğrafı güncellendi",
+    addCaption:"Açıklama ekle...", storyText:"Metin", storyCamera:"Fotoğraf", tapCameraToUpload:"Fotoğraf yükle",
   },
 } as const;
 

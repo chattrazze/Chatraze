@@ -17,6 +17,7 @@ import GroupProfilePage from "@/components/GroupProfilePage";
 import { sendBrowserNotification, playNotificationSound } from "@/components/SettingsSheet";
 import { useLang } from "@/hooks/useLang";
 import type { CallKind } from "@/lib/callService";
+import { useChatBg } from "@/hooks/useChatBg";
 import {
   ArrowLeft,
   Check,
@@ -27,6 +28,7 @@ import {
   Mic,
   MoreHorizontal,
   Paperclip,
+  Pause,
   Phone,
   PhoneOff,
   Play,
@@ -147,6 +149,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   }, [peer.isGroup, peer.members, user?.uid, membersMap]);
 
   const grouped = useMemo(() => groupByDay(messages, t), [messages, t]);
+  const chatBg  = useChatBg(user?.uid ?? "");
 
   if (!user) return null;
 
@@ -318,7 +321,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin chat-pattern px-4 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6 transition-all duration-500" style={chatBg.current.style}>
         <div className="max-w-2xl mx-auto space-y-4">
           {grouped.map((g) => (
             <div key={g.label} className="space-y-2">
@@ -707,16 +710,20 @@ function MessageBody({
 }
 
 /* ─── AudioPlayer ─────────────────────────────────────────────────────────── */
+const PLAYBACK_SPEEDS = [0.5, 1, 1.5, 2] as const;
+
 function AudioPlayer({ src, name, isMine }: { src: string; name?: string; isMine: boolean }) {
-  const [playing, setPlaying] = useState(false);
+  const [playing,  setPlaying]  = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [errored, setErrored] = useState(false);
+  const [errored,  setErrored]  = useState(false);
+  const [speedIdx, setSpeedIdx] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const a = new Audio(src);
     audioRef.current = a;
+    a.playbackRate = PLAYBACK_SPEEDS[1];
     a.onloadedmetadata = () => setDuration(a.duration);
     a.ontimeupdate = () => setProgress(a.currentTime);
     a.onended = () => { setPlaying(false); setProgress(0); };
@@ -731,17 +738,28 @@ function AudioPlayer({ src, name, isMine }: { src: string; name?: string; isMine
     else { a.play().then(() => setPlaying(true)).catch(() => setErrored(true)); }
   }
 
-  function fmt(s: number) {
-    const m = Math.floor(s / 60);
-    return `${m}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
+    const t = parseFloat(e.target.value);
+    if (audioRef.current) audioRef.current.currentTime = t;
+    setProgress(t);
   }
 
-  // Colour tokens: white-based for mine (orange bubble), primary-based for theirs (dark bubble)
-  const btnBg   = isMine ? "bg-white/25 hover:bg-white/40 active:bg-white/50" : "bg-primary/20 hover:bg-primary/30 active:bg-primary/40";
-  const iconCls  = isMine ? "text-white"             : "text-primary";
-  const trackCls = isMine ? "bg-white/30"            : "bg-white/15";
-  const fillCls  = isMine ? "bg-white"               : "bg-primary";
-  const timeCls  = isMine ? "text-white/70"          : "text-muted-foreground";
+  function cycleSpeed() {
+    const next = (speedIdx + 1) % PLAYBACK_SPEEDS.length;
+    setSpeedIdx(next);
+    if (audioRef.current) audioRef.current.playbackRate = PLAYBACK_SPEEDS[next];
+  }
+
+  function fmt(s: number) {
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  }
+
+  const btnBg  = isMine ? "bg-white/25 hover:bg-white/40 active:bg-white/50" : "bg-primary/20 hover:bg-primary/30 active:bg-primary/40";
+  const iconCls = isMine ? "text-white"    : "text-primary";
+  const timeCls = isMine ? "text-white/70" : "text-muted-foreground";
+  const speedCls = isMine
+    ? "border-white/30 text-white/80 hover:bg-white/10"
+    : "border-primary/30 text-primary hover:bg-primary/10";
 
   if (errored) {
     return (
@@ -754,25 +772,39 @@ function AudioPlayer({ src, name, isMine }: { src: string; name?: string; isMine
   }
 
   return (
-    <div className="flex items-center gap-2 w-56 max-w-full">
-      <button
-        onClick={toggle}
-        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition ${btnBg}`}
-      >
-        {playing
-          ? <Square className={`w-4 h-4 ${iconCls}`} />
-          : <Play  className={`w-4 h-4 ${iconCls}`} />}
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className={`w-full h-1.5 rounded-full overflow-hidden ${trackCls}`}>
-          <div
-            className={`h-full transition-all ${fillCls}`}
-            style={{ width: duration > 0 ? `${(progress / duration) * 100}%` : "0%" }}
+    <div className="flex flex-col gap-1 w-60 max-w-full">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggle}
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition ${btnBg}`}
+        >
+          {playing
+            ? <Pause className={`w-4 h-4 ${iconCls}`} />
+            : <Play  className={`w-4 h-4 ${iconCls}`} />}
+        </button>
+        <div className="flex-1 min-w-0">
+          <input
+            type="range"
+            min={0}
+            max={duration || 100}
+            step={0.01}
+            value={progress}
+            onChange={handleSeek}
+            className="w-full h-1.5 rounded-full cursor-pointer"
+            style={{ accentColor: isMine ? "white" : "var(--primary)" }}
           />
+          <div className="flex items-center justify-between mt-0.5">
+            <p className={`text-[10px] ${timeCls}`}>
+              {fmt(progress)} / {duration > 0 ? fmt(duration) : "--:--"}
+            </p>
+            <button
+              onClick={cycleSpeed}
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border transition ${speedCls}`}
+            >
+              {PLAYBACK_SPEEDS[speedIdx]}×
+            </button>
+          </div>
         </div>
-        <p className={`text-[10px] mt-0.5 ${timeCls}`}>
-          {fmt(progress)} / {duration > 0 ? fmt(duration) : "--:--"}
-        </p>
       </div>
     </div>
   );
@@ -786,24 +818,45 @@ function AudioRecorder({
   t: (key: string) => string;
 }) {
   const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const recRef    = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef  = useRef<number | null>(null);
+  const [seconds,   setSeconds]   = useState(0);
+  const [bars, setBars] = useState<number[]>(Array(12).fill(3));
+  const recRef      = useRef<MediaRecorder | null>(null);
+  const chunksRef   = useRef<Blob[]>([]);
+  const timerRef    = useRef<number | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const animRef     = useRef<number | null>(null);
+
+  function animateBars() {
+    if (!analyserRef.current) return;
+    const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(data);
+    const count = 12;
+    const step = Math.max(1, Math.floor(data.length / count));
+    const newBars = Array.from({ length: count }, (_, i) => {
+      const val = data[Math.min(i * step, data.length - 1)] / 255;
+      return Math.max(3, Math.round(val * 28));
+    });
+    setBars(newBars);
+    animRef.current = requestAnimationFrame(animateBars);
+  }
 
   async function start() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
-      // iOS Safari prefers mp4/aac; desktop prefers webm/opus
-      const candidates = [
-        "audio/mp4",
-        "audio/aac",
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/ogg;codecs=opus",
-      ];
+      try {
+        const ctx = new AudioContext();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 64;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        audioCtxRef.current = ctx;
+        analyserRef.current = analyser;
+        animRef.current = requestAnimationFrame(animateBars);
+      } catch { /* waveform optional */ }
+
+      const candidates = ["audio/mp4","audio/aac","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
       const mimeType = candidates.find(
         (c) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported?.(c),
       );
@@ -819,6 +872,9 @@ function AudioRecorder({
         stream.getTracks().forEach((tr) => tr.stop());
         onRecorded(blob);
         setSeconds(0);
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+        audioCtxRef.current?.close().catch(() => {});
+        setBars(Array(12).fill(3));
       };
       rec.start(250);
       setRecording(true);
@@ -831,30 +887,42 @@ function AudioRecorder({
     recRef.current?.stop();
     setRecording(false);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (animRef.current)  { cancelAnimationFrame(animRef.current); animRef.current = null; }
   }
 
   function fmt(s: number) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
+  if (recording) {
+    return (
+      <button
+        onClick={stop}
+        title={t("stopRecording")}
+        className="flex items-center gap-1.5 px-3 h-10 rounded-full bg-destructive text-white min-w-[130px] shrink-0"
+      >
+        <Square className="w-3 h-3 shrink-0" />
+        <div className="flex items-end gap-[2px] h-6">
+          {bars.map((h, i) => (
+            <div
+              key={i}
+              className="w-[3px] rounded-full bg-white/90 transition-all duration-75"
+              style={{ height: `${h}px` }}
+            />
+          ))}
+        </div>
+        <span className="text-xs font-mono tabular-nums ml-0.5">{fmt(seconds)}</span>
+      </button>
+    );
+  }
+
   return (
     <button
-      onClick={recording ? stop : start}
-      title={recording ? t("stopRecording") : t("voiceMessage")}
-      className={`flex items-center gap-1.5 px-2 h-10 rounded-full flex-shrink-0 transition ${
-        recording
-          ? "bg-destructive text-white animate-pulse min-w-[64px]"
-          : "hover:bg-white/5 w-10 justify-center"
-      }`}
+      onClick={start}
+      title={t("voiceMessage")}
+      className="hover:bg-white/5 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition"
     >
-      {recording ? (
-        <>
-          <Square className="w-3.5 h-3.5 shrink-0" />
-          <span className="text-xs font-mono tabular-nums">{fmt(seconds)}</span>
-        </>
-      ) : (
-        <Mic className="w-5 h-5 text-primary" />
-      )}
+      <Mic className="w-5 h-5 text-primary" />
     </button>
   );
 }

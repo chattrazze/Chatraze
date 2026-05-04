@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppUser, getUser, searchUsers } from "@/lib/userService";
-import { addMemberToGroup, getChatStats, getSharedMedia, leaveGroup, MessageDoc } from "@/lib/chatService";
+import { addMemberToGroup, getChatStats, getGroupInfo, getSharedMedia, leaveGroup, MessageDoc, updateGroupInfo } from "@/lib/chatService";
+import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import { useToast } from "@/components/Toast";
 import { useLang } from "@/hooks/useLang";
 import {
   ArrowLeft,
+  Camera,
   Check,
+  Crown,
+  Edit2,
   FileText,
   Image as ImageIcon,
   LogOut,
@@ -48,11 +52,61 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
   const [leaving, setLeaving] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [createdBy, setCreatedBy] = useState<string>("");
+  const [groupAvatarUrl, setGroupAvatarUrl] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState(group.displayName);
+  const [savingGroup, setSavingGroup] = useState(false);
+  const groupPhotoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getChatStats(chatId).then(setStats).catch(() => {});
     getSharedMedia(chatId).then(setMedia).catch(() => {});
+    getGroupInfo(chatId).then((info) => {
+      if (info.createdBy) setCreatedBy(info.createdBy);
+      if (info.avatarUrl) setGroupAvatarUrl(info.avatarUrl);
+      if (info.name) setEditName(info.name);
+    }).catch(() => {});
   }, [chatId]);
+
+  const isAdmin = !!user && user.uid === createdBy;
+
+  async function handleGroupPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !user) return;
+    setSavingGroup(true);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60);
+      const path = `groups/${chatId}/${Date.now()}_${safe}`;
+      const { data, error } = await supabase.storage
+        .from("chat-media")
+        .upload(path, file, { cacheControl: "31536000", upsert: false });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("chat-media").getPublicUrl(data.path);
+      await updateGroupInfo(chatId, { avatar_url: urlData.publicUrl });
+      setGroupAvatarUrl(urlData.publicUrl);
+      toast.show(t("groupPhotoUpdated"));
+    } catch {
+      toast.show(t("couldNotUploadPhoto"));
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
+  async function saveGroupName() {
+    if (!editName.trim()) return;
+    setSavingGroup(true);
+    try {
+      await updateGroupInfo(chatId, { name: editName.trim() });
+      toast.show(t("groupNameEdited"));
+      setEditMode(false);
+    } catch {
+      toast.show(t("couldNotSaveProfile"));
+    } finally {
+      setSavingGroup(false);
+    }
+  }
 
   useEffect(() => {
     if (memberIds.length === 0) return;
@@ -99,14 +153,55 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
         <div className="relative">
           <div className="h-36 bg-gradient-to-br from-accent/80 to-accent" />
           <div className="flex justify-center -mt-12">
-            <div className="ring-4 ring-background rounded-full shadow-2xl">
-              <Avatar name={group.displayName} photoURL={null} size={96} />
+            <div className="relative ring-4 ring-background rounded-full shadow-2xl group/avatar">
+              <Avatar name={editName || group.displayName} photoURL={groupAvatarUrl} size={96} />
+              {isAdmin && (
+                <button
+                  onClick={() => groupPhotoRef.current?.click()}
+                  disabled={savingGroup}
+                  className="absolute inset-0 rounded-full bg-black/55 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition disabled:opacity-50"
+                >
+                  <Camera className="w-6 h-6 text-white" />
+                </button>
+              )}
             </div>
           </div>
+          <input ref={groupPhotoRef} type="file" accept="image/*" className="hidden" onChange={handleGroupPhotoChange} />
         </div>
 
         <div className="text-center px-6 pt-3 pb-5">
-          <h2 className="text-xl font-bold">{group.displayName}</h2>
+          {editMode ? (
+            <div className="flex items-center gap-2 justify-center flex-wrap">
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={50}
+                className="bg-input border border-border rounded-xl px-3 py-1.5 text-sm text-center outline-none focus:ring-2 focus:ring-primary/50 min-w-0 w-40"
+              />
+              <button
+                onClick={saveGroupName}
+                disabled={savingGroup}
+                className="px-3 py-1.5 rounded-xl bg-secondary text-white text-xs font-semibold disabled:opacity-50"
+              >
+                {savingGroup ? t("saving") : t("save")}
+              </button>
+              <button
+                onClick={() => setEditMode(false)}
+                className="px-2 py-1.5 rounded-xl bg-white/5 text-xs text-muted-foreground hover:bg-white/10"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-xl font-bold">{editName || group.displayName}</h2>
+              {isAdmin && (
+                <button onClick={() => setEditMode(true)} className="text-muted-foreground hover:text-foreground transition">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
           <p className="text-sm text-muted-foreground mt-1">{memberIds.length} {t("membersCount")}</p>
         </div>
 
@@ -162,6 +257,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
             )}
             {members.map((m) => {
               const isMe = m.uid === user?.uid;
+              const isMemberAdmin = m.uid === createdBy;
               return (
                 <div key={m.uid} className="flex items-center gap-3 glass rounded-2xl px-4 py-3">
                   <div className="relative shrink-0">
@@ -171,9 +267,17 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">
-                      {m.displayName}{isMe && <span className="text-muted-foreground font-normal"> {t("youSuffix")}</span>}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold truncate">
+                        {m.displayName}{isMe && <span className="text-muted-foreground font-normal"> {t("youSuffix")}</span>}
+                      </p>
+                      {isMemberAdmin && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-bold text-yellow-400 bg-yellow-400/15 rounded-full px-1.5 py-0.5 shrink-0 border border-yellow-400/20">
+                          <Crown className="w-2.5 h-2.5" />
+                          {t("adminLabel")}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {m.online ? t("onlineCapital") : t("offlineCapital")}
                     </p>

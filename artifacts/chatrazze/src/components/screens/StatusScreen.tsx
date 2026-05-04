@@ -452,11 +452,12 @@ export default function StatusScreen({
   const [viewerStatuses, setViewerStatuses] = useState<UserStatus[] | null>(null);
   const [viewerStart, setViewerStart]       = useState(0);
 
-  const [draft, setDraft]           = useState("");
-  const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [draft, setDraft]             = useState("");
+  const [previewImg, setPreviewImg]   = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [bgColor, setBgColor]       = useState("#1a1a2e");
-  const [posting, setPosting]       = useState(false);
+  const [bgColor, setBgColor]         = useState("#1a1a2e");
+  const [posting, setPosting]         = useState(false);
+  const [composerTab, setComposerTab] = useState<"text" | "photo">("text");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const COLORS = [
@@ -533,6 +534,7 @@ export default function StatusScreen({
     setPreviewImg(myStatus?.media_url ?? null);
     setBgColor(myStatus?.background_color ?? "#1a1a2e");
     setPendingFile(null);
+    setComposerTab(myStatus?.media_url ? "photo" : "text");
     setComposerOpen(true);
   }
 
@@ -657,58 +659,110 @@ export default function StatusScreen({
                 <X className="w-5 h-5" />
               </button>
             </header>
+
+            {/* Tab bar */}
+            <div className="flex gap-1 px-4 pt-3">
+              {(["text", "photo"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    setComposerTab(tab);
+                    if (tab === "photo") {
+                      if (!previewImg) fileRef.current?.click();
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition ${
+                    composerTab === tab
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-white/5 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab === "text" ? (
+                    <><FileText className="w-3.5 h-3.5" />{t("storyText")}</>
+                  ) : (
+                    <><ImageIcon className="w-3.5 h-3.5" />{t("storyCamera")}</>
+                  )}
+                </button>
+              ))}
+            </div>
+
             <div className="p-4 space-y-3">
-              {previewImg ? (
-                <div className="relative rounded-xl overflow-hidden">
-                  <img src={previewImg} className="w-full max-h-48 object-cover rounded-xl" alt="preview" />
+              {/* Photo tab */}
+              {composerTab === "photo" && (
+                previewImg ? (
+                  <div className="relative rounded-xl overflow-hidden">
+                    <img src={previewImg} className="w-full max-h-52 object-cover rounded-xl" alt="preview" />
+                    <button
+                      onClick={() => { setPreviewImg(null); setPendingFile(null); }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    onClick={() => { setPreviewImg(null); setPendingFile(null); }}
-                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-full h-40 rounded-xl border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 hover:border-primary/60 hover:bg-primary/5 transition group"
                   >
-                    <X className="w-4 h-4 text-white" />
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 group-hover:bg-primary/10 flex items-center justify-center transition">
+                      <ImageIcon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition" />
+                    </div>
+                    <p className="text-sm text-muted-foreground group-hover:text-foreground transition">{t("tapCameraToUpload") ?? t("addImage")}</p>
                   </button>
-                </div>
-              ) : (
-                <div className="w-full h-32 rounded-xl flex items-center justify-center text-white text-sm font-semibold" style={{ background: bgColor }}>
-                  {draft.trim() || t("whatsOnMind")}
-                </div>
+                )
               )}
+
+              {/* Text tab */}
+              {composerTab === "text" && (
+                <>
+                  <div
+                    className="w-full h-28 rounded-xl flex items-center justify-center px-4 text-white text-sm font-semibold text-center"
+                    style={{ background: bgColor }}
+                  >
+                    {draft.trim() || t("whatsOnMind")}
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setBgColor(color)}
+                        className={`w-7 h-7 rounded-full transition ${bgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+                        style={{ background: color }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Caption / text input (both tabs) */}
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, 200))}
-                placeholder={t("whatsOnMind")}
-                rows={3}
-                autoFocus
+                placeholder={composerTab === "photo" ? (t("addCaption") ?? t("whatsOnMind")) : t("whatsOnMind")}
+                rows={composerTab === "text" ? 3 : 2}
+                autoFocus={composerTab === "text"}
                 className="w-full bg-input rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
-              {!previewImg && (
-                <div className="flex gap-2 flex-wrap">
-                  {COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setBgColor(color)}
-                      className={`w-7 h-7 rounded-full transition ${bgColor === color ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
-                      style={{ background: color }}
-                    />
-                  ))}
-                </div>
-              )}
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition"
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    {t("addImage")}
-                  </button>
+                  {composerTab === "photo" && previewImg && (
+                    <button
+                      onClick={() => { setPreviewImg(null); setPendingFile(null); fileRef.current?.click(); }}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      {t("addImage")}
+                    </button>
+                  )}
                   <span className="text-xs text-muted-foreground">{draft.length}/200</span>
                 </div>
                 <button
                   onClick={save}
                   disabled={posting || (!draft.trim() && !pendingFile)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white text-sm font-semibold disabled:opacity-50 active:scale-95 transition flex items-center gap-1.5"
                 >
+                  <Send className="w-3.5 h-3.5" />
                   {posting ? "…" : t("share")}
                 </button>
               </div>

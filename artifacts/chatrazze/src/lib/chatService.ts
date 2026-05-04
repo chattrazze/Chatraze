@@ -439,3 +439,22 @@ export async function getSharedMedia(chatId: string): Promise<MessageDoc[]> {
     .map((r) => rowToMessage(r as Record<string, unknown>, chatId))
     .filter((m) => ["image", "video", "file", "audio"].includes(m.type));
 }
+
+export async function getGroupInfo(chatId: string): Promise<{ name: string | null; avatarUrl: string | null; createdBy: string | null }> {
+  const { data } = await supabase
+    .from("chats")
+    .select("name, avatar_url, created_by")
+    .eq("id", chatId)
+    .single();
+  if (!data) return { name: null, avatarUrl: null, createdBy: null };
+  return {
+    name: (data.name as string) ?? null,
+    avatarUrl: (data.avatar_url as string) ?? null,
+    createdBy: (data.created_by as string) ?? null,
+  };
+}
+
+export async function updateGroupInfo(chatId: string, updates: { name?: string; avatar_url?: string }) {
+  const { error } = await supabase.from("chats").update(updates).eq("id", chatId);
+  if (error) throw error;
+}
