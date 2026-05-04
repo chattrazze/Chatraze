@@ -77,6 +77,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const typingTimerRef = useRef<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
   // "user" | "group" | null
   const [profilePage, setProfilePage] = useState<"user" | "group" | null>(null);
   const [chatUnlocked, setChatUnlocked] = useState<boolean>(() => {
@@ -367,7 +368,55 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             </button>
           </div>
         )}
+        <button
+          onClick={() => setShowBgPicker(true)}
+          title="Chat wallpaper"
+          className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
+        >
+          <ImageIcon className="w-4.5 h-4.5" />
+        </button>
       </header>
+
+      {/* Background Picker Overlay */}
+      {showBgPicker && (
+        <div className="absolute inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-md">
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
+            <button
+              onClick={() => setShowBgPicker(false)}
+              className="w-9 h-9 rounded-full hover:bg-white/5 flex items-center justify-center transition"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="font-semibold text-base flex-1">Chat Wallpaper</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-3 gap-3">
+              {chatBg.backgrounds.map((bg) => {
+                const isActive = chatBg.bgId === bg.id;
+                return (
+                  <button
+                    key={bg.id}
+                    onClick={() => { chatBg.setChatBg(bg.id); setShowBgPicker(false); }}
+                    className={`relative aspect-[9/16] rounded-2xl overflow-hidden border-2 transition-all active:scale-95 ${isActive ? "border-primary shadow-lg shadow-primary/30" : "border-transparent"}`}
+                  >
+                    <div className="absolute inset-0" style={bg.previewStyle} />
+                    {isActive && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </span>
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 inset-x-0 px-2 py-1.5 text-[10px] font-medium text-white/80 bg-black/40 backdrop-blur-sm truncate text-center">
+                      {bg.labelEn}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile Pages — full-screen overlays */}
       {profilePage === "user" && !peer.isGroup && (

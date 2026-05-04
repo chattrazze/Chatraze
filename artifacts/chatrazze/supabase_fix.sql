@@ -340,5 +340,10 @@ CREATE POLICY "Admin can clear group messages" ON messages
   );
 
 -- ============================================================
+-- 10. CHAT BACKGROUND — per-user setting stored in profile
+-- ============================================================
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS chat_bg TEXT NOT NULL DEFAULT 'default';
+
+-- ============================================================
 -- Done! Run this and then test your app.
 -- ============================================================

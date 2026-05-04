@@ -261,7 +261,7 @@ export default function Sidebar({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-white/[0.06]">
+      <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-white/[0.10]">
         {filtered.length === 0 && (
           <div className="p-8 text-sm text-muted-foreground text-center">
             {search || filter !== "all"
