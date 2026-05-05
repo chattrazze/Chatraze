@@ -10,12 +10,14 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { useLang } from "@/hooks/useLang";
-import { loadCallHistory, clearCallHistory, type CallRecord } from "@/lib/callService";
+import { loadCallHistory, clearCallHistory, type CallRecord, type CallKind } from "@/lib/callService";
 
 export default function CallsScreen({
   onGoToChats: _onGoToChats,
+  onCall,
 }: {
   onGoToChats: () => void;
+  onCall?: (peerId: string, peerName: string, kind: CallKind) => void;
 }) {
   const { user } = useAuth();
   const { show } = useToast();
@@ -74,14 +76,20 @@ export default function CallsScreen({
             </div>
           </>
         ) : (
-          calls.map((c) => <CallRow key={c.id} call={c} />)
+          calls.map((c) => <CallRow key={c.id} call={c} onCall={onCall} />)
         )}
       </div>
     </div>
   );
 }
 
-function CallRow({ call }: { call: CallRecord }) {
+function CallRow({
+  call,
+  onCall,
+}: {
+  call: CallRecord;
+  onCall?: (peerId: string, peerName: string, kind: CallKind) => void;
+}) {
   const { t } = useLang();
   const dirIcon =
     call.direction === "incoming" ? PhoneIncoming
@@ -111,7 +119,7 @@ function CallRow({ call }: { call: CallRecord }) {
 
   return (
     <div className="w-full flex items-center gap-3 p-3 rounded-2xl glass">
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A]/30 to-[#FF4E00]/30 flex items-center justify-center font-semibold text-sm">
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A]/30 to-[#FF4E00]/30 flex items-center justify-center font-semibold text-sm flex-shrink-0">
         {call.peerName.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
@@ -124,6 +132,25 @@ function CallRow({ call }: { call: CallRecord }) {
           {timeAgo(call.at)}
         </p>
       </div>
+
+      {onCall && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => onCall(call.peerId, call.peerName, "voice")}
+            title={t("callBack")}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#FF7A1A] hover:bg-[#FF7A1A]/15 active:scale-90 transition"
+          >
+            <Phone className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onCall(call.peerId, call.peerName, "video")}
+            title={t("callBack")}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#FF7A1A] hover:bg-[#FF7A1A]/15 active:scale-90 transition"
+          >
+            <Video className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

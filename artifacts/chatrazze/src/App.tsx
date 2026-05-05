@@ -234,6 +234,22 @@ function Shell() {
     [user, initiateCall],
   );
 
+  // ── Call back from Calls history ───────────────────────────────────────
+  const onCallBack = useCallback(
+    (peerId: string, peerName: string, kind: CallKind) => {
+      if (!user) return;
+      const minimalPeer: AppUser = {
+        uid: peerId,
+        displayName: peerName,
+        email: null,
+        phone: null,
+        photoURL: null,
+      };
+      onStartCall(minimalPeer, kind);
+    },
+    [user, onStartCall],
+  );
+
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;
   }
@@ -305,7 +321,7 @@ function Shell() {
           </>
         )}
         {tab === "status"      && <StatusScreen onGoToChats={(cid, p) => { setTab("chats"); if (cid && p) { setChatId(cid); setPeer(p); } }} />}
-        {tab === "calls"       && <CallsScreen  onGoToChats={() => setTab("chats")} />}
+        {tab === "calls"       && <CallsScreen  onGoToChats={() => setTab("chats")} onCall={onCallBack} />}
         {tab === "communities" && (
           <CommunitiesScreen
             onOpenChannel={(chatId, name, memberCount) => {
