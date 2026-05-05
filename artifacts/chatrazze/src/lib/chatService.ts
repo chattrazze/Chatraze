@@ -634,3 +634,40 @@ export async function toggleStarredChat(chatId: string, uid: string): Promise<bo
   if (error) throw error;
   return next;
 }
+
+export async function joinGroupByInvite(chatId: string, userId: string): Promise<ChatDoc> {
+  const { data, error } = await supabase
+    .from("chats")
+    .select("*")
+    .eq("id", chatId)
+    .eq("type", "group")
+    .single();
+
+  if (error || !data) throw new Error("Group not found");
+
+  const chat = rowToChat(data as Record<string, unknown>);
+
+  if (chat.members.includes(userId)) return chat;
+
+  const newMembers = [...chat.members, userId];
+  const newUnread  = { ...((data as Record<string, unknown>).unread as Record<string, number> ?? {}), [userId]: 0 };
+
+  const { error: updateErr } = await supabase
+    .from("chats")
+    .update({ members: newMembers, unread: newUnread })
+    .eq("id", chatId);
+
+  if (updateErr) throw updateErr;
+
+  return { ...chat, members: newMembers };
+}
+
+export async function getGroupById(chatId: string): Promise<ChatDoc | null> {
+  const { data, error } = await supabase
+    .from("chats")
+    .select("*")
+    .eq("id", chatId)
+    .single();
+  if (error) return null;
+  return rowToChat(data as Record<string, unknown>);
+}

@@ -23,7 +23,7 @@ import {
   type CallSignal,
   type CallKind,
 } from "@/lib/callService";
-import { createChat, sendMessage } from "@/lib/chatService";
+import { createChat, sendMessage, joinGroupByInvite } from "@/lib/chatService";
 import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
 
 /* ── Syncs user's saved language from Supabase after login ── */
@@ -76,6 +76,32 @@ function Shell() {
     onJumpToChat: jumpToChats,
     onJumpToStatus: jumpToStatus,
   });
+
+  // ── Invite link handler (#invite:GROUP_ID) ────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#invite:")) return;
+    const groupId = hash.slice("#invite:".length).trim();
+    if (!groupId) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    joinGroupByInvite(groupId, user.uid)
+      .then((chat) => {
+        const groupPeer: AppUser = {
+          uid: chat.id,
+          email: null,
+          phone: null,
+          displayName: chat.name ?? t("group"),
+          photoURL: null,
+          isGroup: true,
+          memberCount: chat.members.length,
+        };
+        setChatId(chat.id);
+        setPeer(groupPeer);
+        setTab("chats");
+      })
+      .catch(() => {});
+  }, [user?.uid]);
 
   // ── Presence ──────────────────────────────────────────────────────────
   useEffect(() => {
