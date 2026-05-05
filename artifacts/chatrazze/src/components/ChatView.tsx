@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  deleteMessage,
   listenToChat,
   listenToMessages,
   markChatRead,
@@ -22,6 +23,8 @@ import {
   ArrowLeft,
   Check,
   CheckCheck,
+  Copy,
+  CornerUpLeft,
   Download,
   FileText,
   ImageIcon,
@@ -89,6 +92,14 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [lockPinInput, setLockPinInput] = useState("");
   const [lockPinError, setLockPinError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [contextMsg, setContextMsg]   = useState<MessageDoc | null>(null);
+  const [replyTo, setReplyTo]         = useState<MessageDoc | null>(null);
+  const [toast, setToast]             = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2000);
+  }
 
   // Reset lock state whenever the active chat changes
   useEffect(() => {
@@ -180,6 +191,10 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     setSendError(null);
     setText("");
 
+    // Capture reply context then clear it
+    const pendingReply = replyTo;
+    setReplyTo(null);
+
     // Optimistic update — show message instantly
     const tempId = `temp_${Date.now()}`;
     const optimistic: MessageDoc = {
@@ -191,11 +206,20 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       createdAt: new Date().toISOString(),
       readBy: [user!.uid],
       reactions: {},
+      replyToId:     pendingReply?.id,
+      replyToText:   pendingReply?.text ?? (pendingReply ? `📎 ${pendingReply.type}` : undefined),
+      replyToSender: pendingReply ? (pendingReply.senderId === user!.uid ? t("you") : peer.displayName ?? "") : undefined,
     };
     setMessages((prev) => [...prev, optimistic]);
 
     try {
-      const realId = await sendMessage(chatId, user!.uid, { type: "text", text: msg });
+      const realId = await sendMessage(chatId, user!.uid, {
+        type: "text",
+        text: msg,
+        replyToId:     pendingReply?.id,
+        replyToText:   pendingReply?.text ?? (pendingReply ? `📎 ${pendingReply.type}` : undefined),
+        replyToSender: pendingReply ? (pendingReply.senderId === user!.uid ? t("you") : peer.displayName ?? "") : undefined,
+      });
       setTyping(chatId, user!.uid, false).catch(() => {});
       // Immediately confirm temp message with real DB id — no waiting for realtime
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m)));
@@ -463,6 +487,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   senderName={peer.isGroup && m.senderId !== user.uid ? (membersMap[m.senderId] ?? m.senderId.slice(0, 8)) : undefined}
                   onReact={(emoji) => toggleReaction(chatId, m.id, user.uid, emoji).catch(() => {})}
                   onCall={onCall}
+                  onLongPress={(msg) => setContextMsg(msg)}
                 />
               ))}
             </div>
@@ -484,6 +509,27 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       {sendError && (
         <div className="px-4 py-1.5 text-xs text-center text-red-400 bg-red-500/10 border-t border-red-500/20">
           ⚠️ {sendError}
+        </div>
+      )}
+
+      {/* Reply preview bar */}
+      {replyTo && (
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-white/[0.07]" style={{ background: "#1c1c1e" }}>
+          <div className="w-0.5 self-stretch rounded-full" style={{ background: "#FF7A1A" }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold truncate" style={{ color: "#FF7A1A" }}>
+              {t("replyingTo")} {replyTo.senderId === user.uid ? t("you") : (peer.displayName ?? "")}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {replyTo.text || `📎 ${replyTo.type}`}
+            </p>
+          </div>
+          <button
+            onClick={() => setReplyTo(null)}
+            className="p-1.5 rounded-full hover:bg-white/10 transition shrink-0"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
         </div>
       )}
 
@@ -620,6 +666,39 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           </button></>}
         </div>
       </footer>
+
+      {/* WhatsApp-style context menu */}
+      {contextMsg && (
+        <MessageContextMenu
+          msg={contextMsg}
+          mine={contextMsg.senderId === user.uid}
+          onClose={() => setContextMsg(null)}
+          onReact={(emoji) => {
+            toggleReaction(chatId, contextMsg.id, user.uid, emoji).catch(() => {});
+          }}
+          onReply={() => {
+            setReplyTo(contextMsg);
+            setContextMsg(null);
+          }}
+          onCopy={() => {
+            navigator.clipboard.writeText(contextMsg.text ?? "").catch(() => {});
+            showToast(t("msgCopied"));
+          }}
+          onDelete={() => {
+            deleteMessage(contextMsg.id)
+              .then(() => setMessages((prev) => prev.filter((m) => m.id !== contextMsg.id)))
+              .catch(() => {});
+          }}
+        />
+      )}
+
+      {/* Copied toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] px-5 py-2.5 rounded-2xl text-sm font-medium text-white shadow-xl pointer-events-none"
+          style={{ background: "rgba(30,30,32,0.92)", backdropFilter: "blur(12px)" }}>
+          {toast}
+        </div>
+      )}
     </section>
   );
 }
@@ -637,7 +716,7 @@ function senderColor(uid: string): string {
 }
 
 function MessageRow({
-  m, mine, peerUid, myUid, peer, isGroup, senderName, onReact, onCall,
+  m, mine, peerUid, myUid, peer, isGroup, senderName, onReact, onCall, onLongPress,
 }: {
   m: MessageDoc; mine: boolean; peerUid: string; myUid: string;
   peer: AppUser;
@@ -645,8 +724,9 @@ function MessageRow({
   senderName?: string;
   onReact: (emoji: string) => void;
   onCall?: (peer: AppUser, kind: CallKind) => void;
+  onLongPress: (m: MessageDoc) => void;
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const longPressTimer = useRef<number | null>(null);
   const lastTapRef = useRef<number>(0);
 
   const grouped = useMemo(() => {
@@ -656,37 +736,46 @@ function MessageRow({
     return { counts, mineEmoji };
   }, [m.reactions, myUid]);
 
-  // Double-tap for mobile, double-click for desktop
-  function handleDoubleTap() {
-    setPickerOpen((v) => !v);
-  }
+  function trigger() { onLongPress(m); }
 
-  function handleTouchEnd() {
+  function handleTouchStart() {
+    longPressTimer.current = window.setTimeout(trigger, 480);
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (longPressTimer.current) { window.clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     const now = Date.now();
-    if (now - lastTapRef.current < 320) {
-      handleDoubleTap();
-    }
+    if (now - lastTapRef.current < 340) { e.preventDefault(); trigger(); }
     lastTapRef.current = now;
+  }
+  function handleTouchMove() {
+    if (longPressTimer.current) { window.clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   }
 
   return (
     <div className={`group/msg flex ${mine ? "justify-end" : "justify-start"} relative`}>
       <div className="relative max-w-[78%]">
-        {/* Group sender name — shown above bubble for others' messages */}
+        {/* Group sender name */}
         {isGroup && senderName && !mine && (
-          <p
-            className="text-[11px] font-semibold mb-0.5 px-1 leading-tight"
-            style={{ color: senderColor(m.senderId) }}
-          >
+          <p className="text-[11px] font-semibold mb-0.5 px-1 leading-tight" style={{ color: senderColor(m.senderId) }}>
             {senderName}
           </p>
         )}
         <div
-          className={`rounded-2xl px-3 py-2 ${mine ? "bubble-out" : "bubble-in"} select-none`}
+          className={`rounded-2xl px-3 py-2 ${mine ? "bubble-out" : "bubble-in"} select-none cursor-pointer`}
           style={{ borderTopRightRadius: mine ? 6 : undefined, borderTopLeftRadius: mine ? undefined : 6 }}
-          onDoubleClick={handleDoubleTap}
+          onDoubleClick={trigger}
+          onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchMove}
+          onContextMenu={(e) => { e.preventDefault(); trigger(); }}
         >
+          {/* Quoted reply preview */}
+          {m.replyToText && (
+            <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-black/25 max-w-full overflow-hidden">
+              <p className="text-[11px] font-semibold mb-0.5 truncate" style={{ color: "#FF7A1A" }}>{m.replyToSender}</p>
+              <p className="text-[11px] text-white/70 line-clamp-2 leading-snug">{m.replyToText}</p>
+            </div>
+          )}
           <MessageBody m={m} isMine={mine} peer={peer} onCall={onCall} />
           <div className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
             <span>
@@ -699,6 +788,7 @@ function MessageRow({
           </div>
         </div>
 
+        {/* Reaction pill badges */}
         {Object.keys(grouped.counts).length > 0 && (
           <div className={`flex flex-wrap gap-1 mt-1 ${mine ? "justify-end" : "justify-start"}`}>
             {Object.entries(grouped.counts).map(([key, count]) => (
@@ -713,26 +803,100 @@ function MessageRow({
             ))}
           </div>
         )}
-
-        {pickerOpen && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setPickerOpen(false)} />
-            <div className={`absolute z-40 -top-16 ${mine ? "right-0" : "left-0"} glass rounded-2xl px-3 py-2 shadow-2xl flex items-center gap-1 border border-border`}>
-              {REACTIONS.map(({ key, emoji, label }) => (
-                <button
-                  key={key}
-                  onClick={() => { onReact(key); setPickerOpen(false); }}
-                  title={label}
-                  className={`w-10 h-10 rounded-xl hover:bg-white/10 active:scale-90 transition flex items-center justify-center text-2xl leading-none ${grouped.mineEmoji === key ? "bg-white/15 ring-2 ring-primary/50" : ""}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
       </div>
     </div>
+  );
+}
+
+/* ─── MessageContextMenu — WhatsApp-style bottom sheet ───────────────────── */
+function MessageContextMenu({
+  msg, mine, onClose, onReact, onReply, onCopy, onDelete,
+}: {
+  msg: MessageDoc;
+  mine: boolean;
+  onClose: () => void;
+  onReact: (emoji: string) => void;
+  onReply: () => void;
+  onCopy: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useLang();
+
+  type Action = { icon: React.ElementType; label: string; fn: () => void; danger?: boolean };
+  const actions: Action[] = [
+    { icon: CornerUpLeft, label: t("reply"),    fn: onReply },
+    ...(msg.type === "text" ? [{ icon: Copy,    label: t("copyText"), fn: onCopy }] : []),
+    ...(mine               ? [{ icon: Trash2,   label: t("deleteMsg"), fn: onDelete, danger: true }] : []),
+  ];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+
+      {/* Sheet */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-[60] rounded-t-3xl overflow-hidden shadow-2xl"
+        style={{ background: "#1c1c1e" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Message preview strip */}
+        <div className={`flex ${mine ? "justify-end" : "justify-start"} px-4 pt-4 pb-3 border-b border-white/[0.07]`}>
+          <div
+            className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bubble-out" : "bubble-in"} opacity-90`}
+            style={{ borderTopRightRadius: mine ? 6 : undefined, borderTopLeftRadius: mine ? undefined : 6 }}
+          >
+            {msg.replyToText && (
+              <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-black/25 overflow-hidden">
+                <p className="text-[10px] font-semibold truncate" style={{ color: "#FF7A1A" }}>{msg.replyToSender}</p>
+                <p className="text-[10px] text-white/70 line-clamp-1">{msg.replyToText}</p>
+              </div>
+            )}
+            <p className="whitespace-pre-wrap break-words line-clamp-3">
+              {msg.type === "text" ? msg.text : `📎 ${msg.type}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Emoji reaction row */}
+        <div className="flex items-center justify-around px-6 py-3 border-b border-white/[0.07]">
+          {REACTIONS.map(({ key, emoji }) => (
+            <button
+              key={key}
+              onClick={() => { onReact(key); onClose(); }}
+              className="w-12 h-12 flex items-center justify-center text-[26px] hover:bg-white/10 active:scale-90 transition-all rounded-full"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+
+        {/* Action items */}
+        <div className="py-1">
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              onClick={() => { a.fn(); onClose(); }}
+              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.06] active:bg-white/10 transition text-left"
+            >
+              <a.icon className={`w-5 h-5 shrink-0 ${a.danger ? "text-red-400" : "text-[#FF7A1A]"}`} />
+              <span className={`text-sm font-medium ${a.danger ? "text-red-400" : "text-foreground"}`}>{a.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Cancel */}
+        <button
+          onClick={onClose}
+          className="w-full py-4 text-sm font-semibold text-muted-foreground border-t border-white/[0.07] hover:bg-white/[0.04] transition"
+        >
+          {t("cancel")}
+        </button>
+      </div>
+    </>
   );
 }
 

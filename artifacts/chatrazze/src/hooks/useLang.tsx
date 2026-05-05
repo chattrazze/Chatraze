@@ -161,6 +161,8 @@ const T = {
     lastActivity:"Last activity:", devicesNote:"Chatrazze supports one session at a time. Sign in from any browser and your session syncs automatically via Supabase.",
     bioLabel:"Bio", nameLabel:"Name", linksLabel:"Links", addLinkBtn:"Add a link",
     editBtn:"Edit", unknownBrowser:"Unknown browser", unknownOS:"Unknown OS",
+    reply:"Reply", copyText:"Copy text", deleteMsg:"Delete", replyingTo:"Replying to",
+    msgCopied:"Copied!", you:"You", forwardMsg:"Forward",
   },
   ar: {
     status:"الحالة", calls:"المكالمات", communities:"المجموعات", chats:"المحادثات", profile:"الملف الشخصي",
@@ -309,6 +311,8 @@ const T = {
     lastActivity:"آخر نشاط:", devicesNote:"Chatrazze يدعم جلسة واحدة في وقت واحد. يمكنك تسجيل الدخول من أي متصفح وستكون جلستك متزامنة تلقائياً.",
     bioLabel:"السيرة الذاتية", nameLabel:"الاسم", linksLabel:"الروابط", addLinkBtn:"إضافة رابط",
     editBtn:"تعديل", unknownBrowser:"متصفح غير معروف", unknownOS:"نظام غير معروف",
+    reply:"رد", copyText:"نسخ النص", deleteMsg:"حذف", replyingTo:"رداً على",
+    msgCopied:"تم النسخ!", you:"أنت", forwardMsg:"إعادة إرسال",
   },
   fr: {
     status:"Statut", calls:"Appels", communities:"Communautés", chats:"Discussions", profile:"Profil",
@@ -453,6 +457,8 @@ const T = {
     lastActivity:"Dernière activité :", devicesNote:"Chatrazze prend en charge une seule session à la fois. Connectez-vous depuis n'importe quel navigateur et votre session se synchronise automatiquement.",
     bioLabel:"Bio", nameLabel:"Nom", linksLabel:"Liens", addLinkBtn:"Ajouter un lien",
     editBtn:"Modifier", cancel:"Annuler", unknownBrowser:"Navigateur inconnu", unknownOS:"Système inconnu",
+    reply:"Répondre", copyText:"Copier le texte", deleteMsg:"Supprimer", replyingTo:"En réponse à",
+    msgCopied:"Copié!", you:"Vous", forwardMsg:"Transférer",
   },
   es: {
     status:"Estado", calls:"Llamadas", communities:"Comunidades", chats:"Chats", profile:"Perfil",
@@ -596,6 +602,8 @@ const T = {
     lastActivity:"Última actividad:", devicesNote:"Chatrazze admite una sola sesión a la vez. Inicia sesión desde cualquier navegador y tu sesión se sincroniza automáticamente.",
     bioLabel:"Biografía", nameLabel:"Nombre", linksLabel:"Enlaces", addLinkBtn:"Añadir enlace",
     editBtn:"Editar", cancel:"Cancelar", unknownBrowser:"Navegador desconocido", unknownOS:"Sistema desconocido",
+    reply:"Responder", copyText:"Copiar texto", deleteMsg:"Eliminar", replyingTo:"Respondiendo a",
+    msgCopied:"¡Copiado!", you:"Tú", forwardMsg:"Reenviar",
   },
   de: {
     status:"Status", calls:"Anrufe", communities:"Gruppen", chats:"Chats", profile:"Profil",
@@ -740,6 +748,8 @@ const T = {
     lastActivity:"Letzte Aktivität:", devicesNote:"Chatrazze unterstützt jeweils eine Sitzung. Melde dich von jedem Browser an und deine Sitzung wird automatisch synchronisiert.",
     bioLabel:"Bio", nameLabel:"Name", linksLabel:"Links", addLinkBtn:"Link hinzufügen",
     editBtn:"Bearbeiten", cancel:"Abbrechen", unknownBrowser:"Unbekannter Browser", unknownOS:"Unbekanntes System",
+    reply:"Antworten", copyText:"Text kopieren", deleteMsg:"Löschen", replyingTo:"Antwort an",
+    msgCopied:"Kopiert!", you:"Du", forwardMsg:"Weiterleiten",
   },
   pt: {
     status:"Status", calls:"Chamadas", communities:"Comunidades", chats:"Conversas", profile:"Perfil",
@@ -884,6 +894,8 @@ const T = {
     lastActivity:"Última atividade:", devicesNote:"Chatrazze suporta uma sessão por vez. Entre de qualquer navegador e sua sessão sincroniza automaticamente.",
     bioLabel:"Bio", nameLabel:"Nome", linksLabel:"Links", addLinkBtn:"Adicionar link",
     editBtn:"Editar", cancel:"Cancelar", unknownBrowser:"Navegador desconhecido", unknownOS:"Sistema desconhecido",
+    reply:"Responder", copyText:"Copiar texto", deleteMsg:"Apagar", replyingTo:"Respondendo a",
+    msgCopied:"Copiado!", you:"Você", forwardMsg:"Encaminhar",
   },
   it: {
     status:"Stato", calls:"Chiamate", communities:"Comunità", chats:"Chat", profile:"Profilo",
@@ -1028,6 +1040,8 @@ const T = {
     lastActivity:"Ultima attività:", devicesNote:"Chatrazze supporta una sessione alla volta. Accedi da qualsiasi browser e la tua sessione si sincronizza automaticamente.",
     bioLabel:"Bio", nameLabel:"Nome", linksLabel:"Link", addLinkBtn:"Aggiungi link",
     editBtn:"Modifica", cancel:"Annulla", unknownBrowser:"Browser sconosciuto", unknownOS:"Sistema sconosciuto",
+    reply:"Rispondi", copyText:"Copia testo", deleteMsg:"Elimina", replyingTo:"In risposta a",
+    msgCopied:"Copiato!", you:"Tu", forwardMsg:"Inoltra",
   },
   tr: {
     status:"Durum", calls:"Aramalar", communities:"Topluluklar", chats:"Sohbetler", profile:"Profil",
@@ -1172,6 +1186,8 @@ const T = {
     lastActivity:"Son aktivite:", devicesNote:"Chatrazze aynı anda bir oturumu destekler. Herhangi bir tarayıcıdan giriş yap ve oturumun otomatik senkronize olur.",
     bioLabel:"Bio", nameLabel:"Ad", linksLabel:"Bağlantılar", addLinkBtn:"Bağlantı ekle",
     editBtn:"Düzenle", cancel:"İptal", unknownBrowser:"Bilinmeyen tarayıcı", unknownOS:"Bilinmeyen sistem",
+    reply:"Yanıtla", copyText:"Metni kopyala", deleteMsg:"Sil", replyingTo:"Yanıtlanıyor:",
+    msgCopied:"Kopyalandı!", you:"Sen", forwardMsg:"İlet",
   },
 } as const;
 

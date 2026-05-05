@@ -31,6 +31,9 @@ export interface MessageDoc {
   expiresAt?: string | null;
   readBy: string[];
   reactions?: Record<string, string>;
+  replyToId?: string;
+  replyToText?: string;
+  replyToSender?: string;
 }
 
 function rowToChat(row: Record<string, unknown>): ChatDoc {
@@ -65,6 +68,9 @@ function rowToMessage(row: Record<string, unknown>, chatId: string): MessageDoc 
     expiresAt: (row.expires_at as string) ?? null,
     readBy: (row.read_by as string[]) ?? [],
     reactions: (row.reactions as Record<string, string>) ?? {},
+    replyToId: (row.reply_to_id as string) || undefined,
+    replyToText: (row.reply_to_text as string) || undefined,
+    replyToSender: (row.reply_to_sender as string) || undefined,
   };
 }
 
@@ -258,6 +264,9 @@ export async function sendMessage(
     mediaMime?: string;
     mediaSize?: number;
     duration?: number;
+    replyToId?: string;
+    replyToText?: string;
+    replyToSender?: string;
   },
 ): Promise<string> {
   const { data: chatData, error: chatFetchErr } = await supabase
@@ -288,13 +297,27 @@ export async function sendMessage(
     reactions: {},
   };
 
-  // Try with expires_at first; fall back without it if column isn't migrated yet
+  const fullRow = {
+    ...baseRow,
+    expires_at: expiresAt,
+    reply_to_id: payload.replyToId ?? null,
+    reply_to_text: payload.replyToText ?? null,
+    reply_to_sender: payload.replyToSender ?? null,
+  };
+
+  // Try full row first; fall back progressively for unset columns
   let msgData: { id: string } | null = null;
   let msgErr: { message?: string } | null = null;
 
   ({ data: msgData, error: msgErr } = await supabase.from("messages")
-    .insert({ ...baseRow, expires_at: expiresAt })
+    .insert(fullRow)
     .select("id").single());
+
+  if (msgErr && msgErr.message?.includes("reply_to")) {
+    ({ data: msgData, error: msgErr } = await supabase.from("messages")
+      .insert({ ...baseRow, expires_at: expiresAt })
+      .select("id").single());
+  }
 
   if (msgErr && msgErr.message?.includes("expires_at")) {
     ({ data: msgData, error: msgErr } = await supabase.from("messages")
@@ -660,6 +683,11 @@ export async function joinGroupByInvite(chatId: string, userId: string): Promise
   if (updateErr) throw updateErr;
 
   return { ...chat, members: newMembers };
+}
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  const { error } = await supabase.from("messages").delete().eq("id", messageId);
+  if (error) throw error;
 }
 
 export async function getGroupById(chatId: string): Promise<ChatDoc | null> {
