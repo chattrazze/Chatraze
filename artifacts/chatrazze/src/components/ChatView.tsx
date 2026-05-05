@@ -43,6 +43,9 @@ import {
   Video,
   Video as VideoIcon,
   X,
+  Search,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 
 // Real emoji reactions — like WhatsApp
@@ -95,6 +98,11 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [contextMsg, setContextMsg]   = useState<MessageDoc | null>(null);
   const [replyTo, setReplyTo]         = useState<MessageDoc | null>(null);
   const [toast, setToast]             = useState<string | null>(null);
+  const [searchOpen, setSearchOpen]   = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchIdx, setSearchMatchIdx] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const msgRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
 
   function showToast(msg: string) {
     setToast(msg);
@@ -178,6 +186,22 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       });
     });
   }, [peer.isGroup, peer.members, user?.uid, membersMap]);
+
+  const searchMatches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [] as typeof messages;
+    return messages.filter((m) => m.type === "text" && m.text?.toLowerCase().includes(q));
+  }, [messages, searchQuery]);
+
+  useEffect(() => { setSearchMatchIdx(0); }, [searchQuery]);
+
+  useEffect(() => {
+    if (!searchOpen || searchMatches.length === 0) return;
+    const msg = searchMatches[searchMatchIdx];
+    if (!msg) return;
+    const el = msgRefs.current.get(msg.id);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [searchMatchIdx, searchMatches, searchOpen]);
 
   const grouped = useMemo(() => groupByDay(messages, t), [messages, t]);
   const chatBg  = useChatBg(user?.uid ?? "");
@@ -395,6 +419,17 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           </div>
         )}
         <button
+          onClick={() => {
+            setSearchOpen((v) => { if (!v) setTimeout(() => searchInputRef.current?.focus(), 80); return !v; });
+            setSearchQuery("");
+            setSearchMatchIdx(0);
+          }}
+          title={t("searchInChat")}
+          className={`w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition ${searchOpen ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
+        >
+          <Search className="w-4.5 h-4.5" />
+        </button>
+        <button
           onClick={() => setShowBgPicker(true)}
           title="Chat wallpaper"
           className="w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
@@ -402,6 +437,59 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           <ImageIcon className="w-4.5 h-4.5" />
         </button>
       </header>
+
+      {/* Search bar */}
+      {searchOpen && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-card border-b border-border animate-in slide-in-from-top-2 duration-200">
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const dir = e.shiftKey ? -1 : 1;
+                setSearchMatchIdx((i) => (i + dir + searchMatches.length) % Math.max(searchMatches.length, 1));
+              }
+              if (e.key === "Escape") { setSearchOpen(false); setSearchQuery(""); }
+            }}
+            placeholder={t("searchInChat")}
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0"
+          />
+          {searchQuery.trim() && (
+            searchMatches.length > 0 ? (
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums font-mono">
+                {searchMatchIdx + 1} / {searchMatches.length}
+              </span>
+            ) : (
+              <span className="text-xs text-red-400 shrink-0">{t("noResults")}</span>
+            )
+          )}
+          {searchMatches.length > 1 && (
+            <button
+              onClick={() => setSearchMatchIdx((i) => (i - 1 + searchMatches.length) % searchMatches.length)}
+              className="p-1 rounded hover:bg-foreground/8 text-muted-foreground transition shrink-0"
+            >
+              <ChevronUp className="w-4 h-4" />
+            </button>
+          )}
+          {searchMatches.length > 1 && (
+            <button
+              onClick={() => setSearchMatchIdx((i) => (i + 1) % searchMatches.length)}
+              className="p-1 rounded hover:bg-foreground/8 text-muted-foreground transition shrink-0"
+            >
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+            className="p-1 rounded hover:bg-foreground/8 text-muted-foreground transition shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Background Picker Overlay */}
       {showBgPicker && (
@@ -488,6 +576,9 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   onReact={(emoji) => toggleReaction(chatId, m.id, user.uid, emoji).catch(() => {})}
                   onCall={onCall}
                   onLongPress={(msg) => setContextMsg(msg)}
+                  highlight={searchOpen && searchQuery.trim() ? searchQuery.trim() : undefined}
+                  isCurrentMatch={searchOpen && searchMatches[searchMatchIdx]?.id === m.id}
+                  onMountRef={(el) => { if (el) msgRefs.current.set(m.id, el); else msgRefs.current.delete(m.id); }}
                 />
               ))}
             </div>
@@ -703,6 +794,22 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   );
 }
 
+/* ─── HighlightText — wraps all query matches with an orange mark ─────────── */
+function HighlightText({ text, query }: { text: string; query: string }): React.ReactElement {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-[#FF7A1A]/40 text-inherit rounded px-[1px] not-italic">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      <HighlightText text={text.slice(idx + query.length)} query={query} />
+    </>
+  );
+}
+
 /* ─── MessageRow ──────────────────────────────────────────────────────────── */
 // Deterministic color per sender uid — like WhatsApp group names
 const GROUP_COLORS = [
@@ -717,6 +824,7 @@ function senderColor(uid: string): string {
 
 function MessageRow({
   m, mine, peerUid, myUid, peer, isGroup, senderName, onReact, onCall, onLongPress,
+  highlight, isCurrentMatch, onMountRef,
 }: {
   m: MessageDoc; mine: boolean; peerUid: string; myUid: string;
   peer: AppUser;
@@ -725,6 +833,9 @@ function MessageRow({
   onReact: (emoji: string) => void;
   onCall?: (peer: AppUser, kind: CallKind) => void;
   onLongPress: (m: MessageDoc) => void;
+  highlight?: string;
+  isCurrentMatch?: boolean;
+  onMountRef?: (el: HTMLDivElement | null) => void;
 }) {
   const longPressTimer = useRef<number | null>(null);
   const lastTapRef = useRef<number>(0);
@@ -752,8 +863,8 @@ function MessageRow({
   }
 
   return (
-    <div className={`group/msg flex ${mine ? "justify-end" : "justify-start"} relative`}>
-      <div className="relative max-w-[78%]">
+    <div ref={onMountRef} className={`group/msg flex ${mine ? "justify-end" : "justify-start"} relative`}>
+      <div className={`relative max-w-[78%] transition-all duration-300 ${isCurrentMatch ? "scale-[1.02]" : ""}`}>
         {/* Group sender name */}
         {isGroup && senderName && !mine && (
           <p className="text-[11px] font-semibold mb-0.5 px-1 leading-tight" style={{ color: senderColor(m.senderId) }}>
@@ -761,7 +872,7 @@ function MessageRow({
           </p>
         )}
         <div
-          className={`rounded-2xl px-3 py-2 ${mine ? "bubble-out" : "bubble-in"} select-none cursor-pointer`}
+          className={`rounded-2xl px-3 py-2 ${mine ? "bubble-out" : "bubble-in"} select-none cursor-pointer ${isCurrentMatch ? "ring-2 ring-[#FF7A1A]/70 ring-offset-1" : ""}`}
           style={{ borderTopRightRadius: mine ? 6 : undefined, borderTopLeftRadius: mine ? undefined : 6 }}
           onDoubleClick={trigger}
           onTouchStart={handleTouchStart}
@@ -776,7 +887,7 @@ function MessageRow({
               <p className="text-[11px] text-foreground/70 line-clamp-2 leading-snug">{m.replyToText}</p>
             </div>
           )}
-          <MessageBody m={m} isMine={mine} peer={peer} onCall={onCall} />
+          <MessageBody m={m} isMine={mine} peer={peer} onCall={onCall} highlight={highlight} />
           <div className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
             <span>
               {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
@@ -908,12 +1019,13 @@ function formatBytes(n?: number) {
 }
 
 function MessageBody({
-  m, isMine, peer, onCall,
+  m, isMine, peer, onCall, highlight,
 }: {
   m: MessageDoc;
   isMine: boolean;
   peer?: AppUser;
   onCall?: (peer: AppUser, kind: CallKind) => void;
+  highlight?: string;
 }) {
   const { t } = useLang();
   if (m.type === "image" && m.mediaUrl) {
@@ -992,7 +1104,13 @@ function MessageBody({
       </div>
     );
   }
-  return <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>;
+  return (
+    <p className="text-sm whitespace-pre-wrap break-words">
+      {highlight && m.text
+        ? <HighlightText text={m.text} query={highlight} />
+        : m.text}
+    </p>
+  );
 }
 
 /* ─── AudioPlayer ─────────────────────────────────────────────────────────── */
