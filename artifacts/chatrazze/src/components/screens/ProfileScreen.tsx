@@ -12,45 +12,23 @@ import Avatar from "@/components/Avatar";
 import { getStarredChats, createChat, sendMessage } from "@/lib/chatService";
 import type { ChatDoc } from "@/lib/chatService";
 import {
-  ArrowLeft,
-  Bell,
-  Camera,
-  Check,
-  ChevronRight,
-  Copy,
-  Database,
-  HelpCircle,
-  KeyRound,
-  Laptop,
-  Link,
-  LogOut,
-  Megaphone,
-  MessageCircle,
-  Moon,
-  Palette,
-  Pencil,
-  Search,
-  Send,
-  Share2,
-  Shield,
-  Smartphone,
-  Star,
-  Sun,
-  UserPlus,
-  X,
+  ArrowLeft, Bell, Camera, Check, ChevronRight, Copy, Database,
+  HelpCircle, KeyRound, Laptop, Link, LogOut, Megaphone,
+  MessageCircle, Moon, Palette, Pencil, Search, Send,
+  Share2, Shield, Smartphone, Star, Sun, UserPlus, X,
 } from "lucide-react";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
-function parseUA(ua: string) {
-  let browser = "متصفح غير معروف";
+function parseUA(ua: string, unknownBrowser: string, unknownOS: string) {
+  let browser = unknownBrowser;
   if (/Chrome\//.test(ua) && !/Edge\/|Edg\//.test(ua)) browser = "Chrome";
   else if (/Firefox\//.test(ua)) browser = "Firefox";
   else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = "Safari";
   else if (/Edg\//.test(ua)) browser = "Edge";
   else if (/OPR\//.test(ua)) browser = "Opera";
 
-  let os = "نظام غير معروف";
+  let os = unknownOS;
   if (/Windows NT/.test(ua)) os = "Windows";
   else if (/Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua)) os = "macOS";
   else if (/Linux/.test(ua) && !/Android/.test(ua)) os = "Linux";
@@ -60,22 +38,20 @@ function parseUA(ua: string) {
   return { browser, os };
 }
 
-function timeAgo(iso: string | undefined): string {
+function timeAgo(iso: string | undefined, t: (k: string) => string): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "الآن";
-  if (mins < 60) return `منذ ${mins} دقيقة`;
+  if (mins < 1) return t("justNow");
+  if (mins < 60) return `${mins} ${t("minAgo")}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `منذ ${hrs} ساعة`;
-  return `منذ ${Math.floor(hrs / 24)} يوم`;
+  if (hrs < 24) return `${hrs} ${t("hAgo")}`;
+  return `${Math.floor(hrs / 24)}d`;
 }
 
-/* ─── Sub-components ──────────────────────────────────────────────────────── */
+/* ─── Layout primitives ────────────────────────────────────────────────────── */
 
-function Row({
-  icon, label, sub, onClick, noChevron, preview, labelColor,
-}: {
+function Row({ icon, label, sub, onClick, noChevron, preview, labelColor }: {
   icon: React.ReactNode; label: string; sub?: string;
   onClick?: () => void; noChevron?: boolean;
   preview?: React.ReactNode; labelColor?: string;
@@ -130,6 +106,7 @@ function BottomSheet({ open, onClose, title, children }: {
 
 /* ── Invite Sheet ─────────────────────────────────────────────────────────── */
 function InviteSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useLang();
   const [copied, setCopied] = useState(false);
   const link = window.location.origin;
 
@@ -142,35 +119,33 @@ function InviteSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
 
   async function shareLink() {
     if (navigator.share) {
-      await navigator.share({ title: "Chatrazze", text: "تحدّث معي على Chatrazze!", url: link });
+      await navigator.share({ title: "Chatrazze", text: t("inviteShareDesc"), url: link });
     } else {
       copyLink();
     }
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="دعوة أصدقاء">
+    <BottomSheet open={open} onClose={onClose} title={t("inviteFriends")}>
       <div className="p-5 space-y-4">
         <div className="flex items-center gap-3 p-4 rounded-2xl border border-white/10"
           style={{ background: "rgba(255,255,255,0.04)" }}>
           <Link className="w-4 h-4 text-[#FF7A1A] shrink-0" />
           <p className="flex-1 text-sm text-muted-foreground truncate">{link}</p>
         </div>
-        <p className="text-sm text-muted-foreground text-center">
-          شارك الرابط مع أصدقائك ليتواصلوا معك على Chatrazze
-        </p>
+        <p className="text-sm text-muted-foreground text-center">{t("inviteShareDesc")}</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={copyLink}
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition active:scale-95"
             style={{ background: "rgba(255,255,255,0.08)", color: copied ? "#4ade80" : "white" }}>
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied ? "تم النسخ!" : "نسخ الرابط"}
+            {copied ? t("linkCopied") : t("copyLink")}
           </button>
           <button onClick={shareLink}
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition active:scale-95 text-white"
             style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
             <Share2 className="w-4 h-4" />
-            مشاركة
+            {t("shareBtn")}
           </button>
         </div>
       </div>
@@ -179,12 +154,11 @@ function InviteSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
 }
 
 /* ── Starred Chats Sheet ──────────────────────────────────────────────────── */
-function StarredSheet({
-  open, onClose, uid, onGoToChat,
-}: {
+function StarredSheet({ open, onClose, uid, onGoToChat }: {
   open: boolean; onClose: () => void; uid: string;
   onGoToChat: (chatId: string, peer: AppUser) => void;
 }) {
+  const { t } = useLang();
   const [chats, setChats] = useState<ChatDoc[]>([]);
   const [peers, setPeers] = useState<Record<string, AppUser>>({});
   const [loading, setLoading] = useState(false);
@@ -207,7 +181,7 @@ function StarredSheet({
   }, [open, uid]);
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="الرسائل المميزة">
+    <BottomSheet open={open} onClose={onClose} title={t("starredMessages")}>
       <div className="p-4">
         {loading && (
           <div className="flex justify-center py-8">
@@ -217,22 +191,19 @@ function StarredSheet({
         {!loading && chats.length === 0 && (
           <div className="flex flex-col items-center py-10 gap-3">
             <Star className="w-10 h-10 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">لا توجد محادثات مميزة</p>
-            <p className="text-xs text-muted-foreground/60 text-center">
-              يمكنك تمييز محادثة بالضغط عليها مطوّلاً في قائمة الدردشات
-            </p>
+            <p className="text-sm text-muted-foreground">{t("noStarredChats")}</p>
+            <p className="text-xs text-muted-foreground/60 text-center">{t("noStarredChatsSub")}</p>
           </div>
         )}
         {!loading && chats.map((c) => {
           const peer = peers[c.id];
-          const chatName = c.name ?? peer?.displayName ?? "محادثة";
-          const photoURL = peer?.photoURL ?? null;
+          const chatName = c.name ?? peer?.displayName ?? t("loadingDots");
           return (
             <button key={c.id}
               onClick={() => { if (peer) { onGoToChat(c.id, peer); onClose(); } }}
               className="w-full flex items-center gap-3 px-2 py-3 rounded-2xl hover:bg-white/5 transition text-left">
-              {photoURL ? (
-                <img src={photoURL} alt={chatName} className="w-12 h-12 rounded-full object-cover shrink-0" />
+              {peer?.photoURL ? (
+                <img src={peer.photoURL} alt={chatName} className="w-12 h-12 rounded-full object-cover shrink-0" />
               ) : (
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white shrink-0"
                   style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
@@ -241,9 +212,7 @@ function StarredSheet({
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{chatName}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {c.lastMessage || "لا توجد رسائل"}
-                </p>
+                <p className="text-xs text-muted-foreground truncate">{c.lastMessage || t("noMessages")}</p>
               </div>
               <Star className="w-4 h-4 text-[#FF7A1A] shrink-0" />
             </button>
@@ -255,11 +224,8 @@ function StarredSheet({
 }
 
 /* ── Broadcast Sheet ──────────────────────────────────────────────────────── */
-function BroadcastSheet({
-  open, onClose, uid,
-}: {
-  open: boolean; onClose: () => void; uid: string;
-}) {
+function BroadcastSheet({ open, onClose, uid }: { open: boolean; onClose: () => void; uid: string }) {
+  const { t } = useLang();
   const { show } = useToast();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AppUser[]>([]);
@@ -274,10 +240,10 @@ function BroadcastSheet({
 
   useEffect(() => {
     if (query.length < 1) { setResults([]); return; }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       searchUsers(query).then((r) => setResults(r.filter((u) => u.uid !== uid)));
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query, uid]);
 
   function toggle(u: AppUser) {
@@ -294,17 +260,14 @@ function BroadcastSheet({
         const chatId = await createChat(uid, peer.uid);
         await sendMessage(chatId, uid, { type: "text", text: message.trim() });
       }
-      show(`تم إرسال الرسالة إلى ${selected.length} شخص`);
+      show(`${t("sentToPrefix")} ${selected.length} ${t("personCount")}`);
       onClose();
-    } catch {
-      show("تعذّر الإرسال");
-    } finally {
-      setSending(false);
-    }
+    } catch { show(t("couldNotSend")); }
+    finally { setSending(false); }
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="رسالة جماعية">
+    <BottomSheet open={open} onClose={onClose} title={t("broadcastMsg")}>
       {step === "pick" ? (
         <div className="flex flex-col" style={{ minHeight: 300 }}>
           <div className="px-4 pt-3 pb-2">
@@ -312,27 +275,24 @@ function BroadcastSheet({
               style={{ background: "rgba(255,255,255,0.05)" }}>
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input value={query} onChange={(e) => setQuery(e.target.value)}
-                placeholder="ابحث عن مستخدم…" autoFocus
+                placeholder={t("searchUserPlaceholder")} autoFocus
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
             </div>
           </div>
-
           {selected.length > 0 && (
             <div className="px-4 pb-3 flex gap-2 flex-wrap">
               {selected.map((u) => (
                 <button key={u.uid} onClick={() => toggle(u)}
                   className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
                   style={{ background: "rgba(255,122,26,0.18)", color: "#FF7A1A" }}>
-                  {u.displayName}
-                  <X className="w-3 h-3" />
+                  {u.displayName}<X className="w-3 h-3" />
                 </button>
               ))}
             </div>
           )}
-
           <div className="flex-1 px-2 pb-4">
             {results.map((u) => {
-              const isSelected = !!selected.find((x) => x.uid === u.uid);
+              const isSel = !!selected.find((x) => x.uid === u.uid);
               return (
                 <button key={u.uid} onClick={() => toggle(u)}
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-white/5 transition">
@@ -348,24 +308,22 @@ function BroadcastSheet({
                     <p className="text-sm font-semibold truncate">{u.displayName}</p>
                     <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
-                    isSelected ? "border-[#FF7A1A] bg-[#FF7A1A]" : "border-white/30"}`}>
-                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${isSel ? "border-[#FF7A1A] bg-[#FF7A1A]" : "border-white/30"}`}>
+                    {isSel && <Check className="w-3 h-3 text-white" />}
                   </div>
                 </button>
               );
             })}
             {query.length > 0 && results.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-6">لا نتائج</p>
+              <p className="text-center text-sm text-muted-foreground py-6">{t("noResults")}</p>
             )}
           </div>
-
           {selected.length > 0 && (
             <div className="px-4 pb-5 shrink-0">
               <button onClick={() => setStep("compose")}
                 className="w-full py-3.5 rounded-2xl text-sm font-bold text-white active:scale-95 transition"
                 style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
-                التالي · {selected.length} مختار
+                {t("nextBtn")} · {selected.length} {t("selectedCount")}
               </button>
             </div>
           )}
@@ -381,21 +339,21 @@ function BroadcastSheet({
             ))}
           </div>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)}
-            placeholder="اكتب رسالتك…" rows={4} autoFocus
+            placeholder={t("typeYourMessage")} rows={4} autoFocus
             className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-none border border-white/10"
             style={{ background: "rgba(255,255,255,0.06)" }} />
           <div className="flex gap-3">
             <button onClick={() => setStep("pick")}
               className="flex-1 py-3 rounded-2xl text-sm font-semibold active:scale-95 transition"
               style={{ background: "rgba(255,255,255,0.08)" }}>
-              رجوع
+              {t("goBack")}
             </button>
             <button onClick={send} disabled={!message.trim() || sending}
               className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-50"
               style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
               {sending
                 ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                : <><Send className="w-4 h-4" /> إرسال</>}
+                : <><Send className="w-4 h-4" />{t("share")}</>}
             </button>
           </div>
         </div>
@@ -408,41 +366,35 @@ function BroadcastSheet({
 function LinkedDevicesSheet({ open, onClose, lastSeen }: {
   open: boolean; onClose: () => void; lastSeen?: string;
 }) {
-  const { browser, os } = parseUA(navigator.userAgent);
+  const { t } = useLang();
+  const { browser, os } = parseUA(navigator.userAgent, t("unknownBrowser"), t("unknownOS"));
   const isMobile = /Android|iPhone|iPad/.test(navigator.userAgent);
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="الأجهزة المرتبطة">
+    <BottomSheet open={open} onClose={onClose} title={t("linkedDevicesLabel")}>
       <div className="p-4 space-y-3">
-        <p className="text-xs text-muted-foreground px-1">
-          الجلسة النشطة حالياً على هذا الجهاز
-        </p>
-
+        <p className="text-xs text-muted-foreground px-1">{t("activeSession")}</p>
         <div className="rounded-2xl border border-[#FF7A1A]/30 overflow-hidden"
           style={{ background: "rgba(255,122,26,0.06)" }}>
           <div className="flex items-center gap-4 px-4 py-4">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
               style={{ background: "rgba(255,122,26,0.15)" }}>
-              {isMobile
-                ? <Smartphone className="w-5 h-5 text-[#FF7A1A]" />
-                : <Laptop className="w-5 h-5 text-[#FF7A1A]" />}
+              {isMobile ? <Smartphone className="w-5 h-5 text-[#FF7A1A]" /> : <Laptop className="w-5 h-5 text-[#FF7A1A]" />}
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold">{browser} · {os}</p>
-              <p className="text-xs text-[#FF7A1A]">هذا الجهاز · نشط</p>
+              <p className="text-xs text-[#FF7A1A]">{t("thisDeviceActive")}</p>
               {lastSeen && (
-                <p className="text-xs text-muted-foreground mt-0.5">آخر نشاط: {timeAgo(lastSeen)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("lastActivity")} {timeAgo(lastSeen, t as (k: string) => string)}
+                </p>
               )}
             </div>
             <div className="w-2.5 h-2.5 rounded-full bg-green-400 shadow shadow-green-400/50 shrink-0" />
           </div>
         </div>
-
-        <div className="rounded-2xl p-4 border border-white/8"
-          style={{ background: "rgba(255,255,255,0.04)" }}>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Chatrazze يدعم جلسة واحدة في وقت واحد. يمكنك تسجيل الدخول من أي متصفح أو جهاز وستكون جلستك متزامنة تلقائياً عبر Supabase.
-          </p>
+        <div className="rounded-2xl p-4 border border-white/8" style={{ background: "rgba(255,255,255,0.04)" }}>
+          <p className="text-xs text-muted-foreground leading-relaxed">{t("devicesNote")}</p>
         </div>
       </div>
     </BottomSheet>
@@ -454,9 +406,9 @@ function EditRow({ label, value, placeholder, editable, onChange, onSave, saving
   label: string; value: string; placeholder?: string; editable: boolean;
   onChange: (v: string) => void; onSave: () => void; saving?: boolean; multiline?: boolean;
 }) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-
   useEffect(() => { setDraft(value); }, [value]);
 
   function commit() { onChange(draft); onSave(); setOpen(false); }
@@ -489,12 +441,12 @@ function EditRow({ label, value, placeholder, editable, onChange, onSave, saving
             <div className="flex gap-3 mt-4">
               <button onClick={() => setOpen(false)}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold bg-white/8 text-muted-foreground active:scale-95 transition">
-                إلغاء
+                {t("cancel")}
               </button>
               <button onClick={commit} disabled={saving}
                 className="flex-1 py-3 rounded-xl text-sm font-bold active:scale-95 transition disabled:opacity-50 text-white"
                 style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)" }}>
-                {saving ? "…" : "حفظ"}
+                {saving ? t("saving") : t("save")}
               </button>
             </div>
           </div>
@@ -599,26 +551,26 @@ export default function ProfileScreen({ onGoToChat }: {
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="mt-3 text-sm font-semibold active:opacity-70 transition"
               style={{ color: "#FF7A1A" }}>
-              {uploading ? "جارٍ الرفع…" : "تعديل"}
+              {uploading ? t("uploading") : t("editBtn")}
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
           </div>
           <div className="mx-4 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
-            <EditRow label="السيرة الذاتية" value={bio} placeholder="أضف سيرة ذاتية…"
+            <EditRow label={t("bioLabel")} value={bio} placeholder={t("defaultBio")}
               editable onChange={setBio} onSave={save} saving={saving} multiline />
-            <EditRow label="الاسم" value={name} placeholder="اكتب اسمك…"
+            <EditRow label={t("nameLabel")} value={name} placeholder={t("nameLabel")}
               editable onChange={setName} onSave={save} saving={saving} />
             <div>
-              <p className="px-5 pt-4 pb-1 text-xs text-muted-foreground uppercase tracking-wider">البريد الإلكتروني</p>
+              <p className="px-5 pt-4 pb-1 text-xs text-muted-foreground uppercase tracking-wider">{t("emailLabel")}</p>
               <div className="flex items-center gap-4 px-5 py-3">
                 <p className="flex-1 text-sm text-muted-foreground">{user.email || "—"}</p>
               </div>
               <div className="mx-5 border-b border-white/8" />
             </div>
             <div>
-              <p className="px-5 pt-4 pb-1 text-xs text-muted-foreground uppercase tracking-wider">الروابط</p>
+              <p className="px-5 pt-4 pb-1 text-xs text-muted-foreground uppercase tracking-wider">{t("linksLabel")}</p>
               <button className="w-full flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition text-left">
-                <p className="flex-1 text-sm font-medium" style={{ color: "#FF7A1A" }}>إضافة رابط</p>
+                <p className="flex-1 text-sm font-medium" style={{ color: "#FF7A1A" }}>{t("addLinkBtn")}</p>
                 <Link className="w-4 h-4 text-muted-foreground shrink-0" />
               </button>
               <div className="mx-5 border-b border-white/8" />
@@ -642,7 +594,6 @@ export default function ProfileScreen({ onGoToChat }: {
             style={{ background: "rgba(255,255,255,0.06)" }}>
             {bio.length > 36 ? bio.slice(0, 36) + "…" : bio}
           </button>
-
           <button onClick={() => setView("edit")} className="relative active:opacity-80 transition">
             {photoURL ? (
               <Avatar name={name || user.email || "U"} photoURL={photoURL} size={96} className="shadow-2xl" />
@@ -653,25 +604,24 @@ export default function ProfileScreen({ onGoToChat }: {
               </div>
             )}
           </button>
-
           <button onClick={() => setView("edit")} className="mt-4 active:opacity-70 transition">
             <h1 className="text-2xl font-bold text-white">{name || user.email || "—"}</h1>
           </button>
         </div>
 
-        <SectionLabel label="الإعدادات" />
+        <SectionLabel label={t("settingsSection")} />
         <Card>
           <Row icon={<UserPlus className="w-4 h-4 text-[#FF7A1A]" />}
-            label="دعوة أصدقاء" onClick={() => setSheet("invite")} />
+            label={t("inviteFriends")} onClick={() => setSheet("invite")} />
           <Row icon={<Star className="w-4 h-4 text-[#FF7A1A]" />}
-            label="الرسائل المميزة" sub="المحادثات التي مييّزتها بنجمة" onClick={() => setSheet("starred")} />
+            label={t("starredMessages")} sub={t("starredMessagesSub")} onClick={() => setSheet("starred")} />
           <Row icon={<Megaphone className="w-4 h-4 text-[#FF7A1A]" />}
-            label="رسالة جماعية" sub="أرسل لعدة أشخاص دفعة واحدة" onClick={() => setSheet("broadcast")} />
+            label={t("broadcastMsg")} sub={t("broadcastMsgSub")} onClick={() => setSheet("broadcast")} />
           <Row icon={<Laptop className="w-4 h-4 text-[#FF7A1A]" />}
-            label="الأجهزة المرتبطة" sub="الجلسات النشطة على حسابك" onClick={() => setSheet("devices")} />
+            label={t("linkedDevicesLabel")} sub={t("linkedDevicesSub")} onClick={() => setSheet("devices")} />
         </Card>
 
-        <SectionLabel label="الحساب" />
+        <SectionLabel label={t("accountSection")} />
         <Card>
           <Row icon={<KeyRound className="w-4 h-4 text-[#FF7A1A]" />}
             label={t("accountSetting")} sub={user.email || undefined} onClick={() => setView("edit")} />
@@ -685,7 +635,7 @@ export default function ProfileScreen({ onGoToChat }: {
             label={t("storageDataSetting")} sub={t("storageDataSub")} onClick={() => setPanel("storage")} />
         </Card>
 
-        <SectionLabel label="المظهر" />
+        <SectionLabel label={t("appearanceSection")} />
         <Card>
           <button onClick={() => { toggle(); show(theme === "dark" ? t("lightThemeOn") : t("darkThemeOn")); }}
             className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/5 active:scale-[0.99] transition text-left">
@@ -709,11 +659,10 @@ export default function ProfileScreen({ onGoToChat }: {
             noChevron />
         </Card>
 
-        <SectionLabel label="المساعدة" />
+        <SectionLabel label={t("helpSection")} />
         <Card>
           <Row icon={<HelpCircle className="w-4 h-4 text-[#FF7A1A]" />}
-            label="المساعدة والملاحظات"
-            sub="تواصل مع الدعم أو أرسل ملاحظاتك"
+            label={t("helpFeedback")} sub={t("helpFeedbackSub")}
             onClick={() => window.open("mailto:support@chatrazze.com", "_blank")} />
         </Card>
 
@@ -731,16 +680,12 @@ export default function ProfileScreen({ onGoToChat }: {
         </p>
       </div>
 
-      {/* ── All Sheets ── */}
+      {/* ── Sheets ── */}
       <InviteSheet open={sheet === "invite"} onClose={() => setSheet(null)} />
-      <StarredSheet
-        open={sheet === "starred"} onClose={() => setSheet(null)}
-        uid={user.uid}
-        onGoToChat={onGoToChat ?? (() => {})}
-      />
+      <StarredSheet open={sheet === "starred"} onClose={() => setSheet(null)}
+        uid={user.uid} onGoToChat={onGoToChat ?? (() => {})} />
       <BroadcastSheet open={sheet === "broadcast"} onClose={() => setSheet(null)} uid={user.uid} />
       <LinkedDevicesSheet open={sheet === "devices"} onClose={() => setSheet(null)} lastSeen={lastSeen} />
-
       <SettingsSheet panel={panel} onClose={() => setPanel(null)} />
 
       {/* Chat Background Picker */}
@@ -760,8 +705,7 @@ export default function ProfileScreen({ onGoToChat }: {
                 return (
                   <button key={bg.id}
                     onClick={() => { chatBg.setChatBg(bg.id); setShowBgPicker(false); }}
-                    className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition ${
-                      isActive ? "border-[#FF7A1A] scale-105" : "border-transparent hover:border-white/20"}`}>
+                    className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition ${isActive ? "border-[#FF7A1A] scale-105" : "border-transparent hover:border-white/20"}`}>
                     <div className="w-full h-full" style={bg.previewStyle} />
                     <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1">
                       <p className="text-[10px] text-white font-medium text-center truncate">{bg.labelAr}</p>
