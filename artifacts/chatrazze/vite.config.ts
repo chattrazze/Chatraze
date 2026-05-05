@@ -5,7 +5,8 @@ import path from "path";
 
 // Use sensible defaults so the config works in any CI/build environment
 const port = Number(process.env.PORT ?? "3000");
-const basePath = process.env.BASE_PATH ?? "/";
+const isMobileBuild = process.env.MOBILE_BUILD === "true";
+const basePath = isMobileBuild ? "./" : (process.env.BASE_PATH ?? "/");
 
 export default defineConfig({
   base: basePath,
