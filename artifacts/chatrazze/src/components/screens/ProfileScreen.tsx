@@ -570,7 +570,7 @@ export default function ProfileScreen({ onGoToChat }: {
               </button>
             </div>
           </div>
-          <p className="text-center text-[11px] text-muted-foreground py-6">Chatrazze • {t("poweredBy")}</p>
+          <p className="text-center text-[11px] text-muted-foreground py-6">{t("poweredBy")}</p>
         </div>
       </div>
     );
@@ -668,7 +668,7 @@ export default function ProfileScreen({ onGoToChat }: {
         </div>
 
         <p className="text-center text-[11px] text-muted-foreground pt-5 pb-2">
-          Chatrazze • {t("poweredBy")}
+          {t("poweredBy")}
         </p>
       </div>
 
