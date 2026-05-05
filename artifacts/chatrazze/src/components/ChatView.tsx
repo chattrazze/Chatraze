@@ -347,7 +347,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     <section className="flex-1 flex flex-col h-full">
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-3 glass border-b border-border">
-        <button onClick={onBack} className="md:hidden p-1.5 rounded-lg hover:bg-white/5">
+        <button onClick={onBack} className="md:hidden p-1.5 rounded-lg hover:bg-foreground/5">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <button
@@ -381,14 +381,14 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             <button
               onClick={() => onCall(peer, "voice")}
               title="Voice call"
-              className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
+              className="w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
             >
               <Phone className="w-4.5 h-4.5" />
             </button>
             <button
               onClick={() => onCall(peer, "video")}
               title="Video call"
-              className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
+              className="w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
             >
               <VideoIcon className="w-4.5 h-4.5" />
             </button>
@@ -397,7 +397,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
         <button
           onClick={() => setShowBgPicker(true)}
           title="Chat wallpaper"
-          className="w-9 h-9 rounded-full hover:bg-white/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
+          className="w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
         >
           <ImageIcon className="w-4.5 h-4.5" />
         </button>
@@ -409,7 +409,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
             <button
               onClick={() => setShowBgPicker(false)}
-              className="w-9 h-9 rounded-full hover:bg-white/5 flex items-center justify-center transition"
+              className="w-9 h-9 rounded-full hover:bg-foreground/5 flex items-center justify-center transition"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -514,7 +514,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
 
       {/* Reply preview bar */}
       {replyTo && (
-        <div className="flex items-center gap-3 px-4 py-2 border-t border-white/[0.07]" style={{ background: "#1c1c1e" }}>
+        <div className="flex items-center gap-3 px-4 py-2 border-t border-border bg-card">
           <div className="w-0.5 self-stretch rounded-full" style={{ background: "#FF7A1A" }} />
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-semibold truncate" style={{ color: "#FF7A1A" }}>
@@ -526,7 +526,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           </div>
           <button
             onClick={() => setReplyTo(null)}
-            className="p-1.5 rounded-full hover:bg-white/10 transition shrink-0"
+            className="p-1.5 rounded-full hover:bg-foreground/8 transition shrink-0"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -542,7 +542,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             <button
               title="Attach"
               onClick={() => setShowAttachMenu((v) => !v)}
-              className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center transition"
+              className="w-10 h-10 rounded-full hover:bg-foreground/5 flex items-center justify-center transition"
             >
               <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -771,9 +771,9 @@ function MessageRow({
         >
           {/* Quoted reply preview */}
           {m.replyToText && (
-            <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-black/25 max-w-full overflow-hidden">
+            <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-foreground/10 max-w-full overflow-hidden">
               <p className="text-[11px] font-semibold mb-0.5 truncate" style={{ color: "#FF7A1A" }}>{m.replyToSender}</p>
-              <p className="text-[11px] text-white/70 line-clamp-2 leading-snug">{m.replyToText}</p>
+              <p className="text-[11px] text-foreground/70 line-clamp-2 leading-snug">{m.replyToText}</p>
             </div>
           )}
           <MessageBody m={m} isMine={mine} peer={peer} onCall={onCall} />
@@ -839,20 +839,19 @@ function MessageContextMenu({
 
       {/* Sheet */}
       <div
-        className="fixed inset-x-0 bottom-0 z-[60] rounded-t-3xl overflow-hidden shadow-2xl"
-        style={{ background: "#1c1c1e" }}
+        className="fixed inset-x-0 bottom-0 z-[60] rounded-t-3xl overflow-hidden shadow-2xl bg-card border-t border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Message preview strip */}
-        <div className={`flex ${mine ? "justify-end" : "justify-start"} px-4 pt-4 pb-3 border-b border-white/[0.07]`}>
+        <div className={`flex ${mine ? "justify-end" : "justify-start"} px-4 pt-4 pb-3 border-b border-border`}>
           <div
             className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bubble-out" : "bubble-in"} opacity-90`}
             style={{ borderTopRightRadius: mine ? 6 : undefined, borderTopLeftRadius: mine ? undefined : 6 }}
           >
             {msg.replyToText && (
-              <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-black/25 overflow-hidden">
+              <div className="rounded-xl px-2.5 py-1.5 mb-2 border-l-2 border-[#FF7A1A] bg-foreground/10 overflow-hidden">
                 <p className="text-[10px] font-semibold truncate" style={{ color: "#FF7A1A" }}>{msg.replyToSender}</p>
-                <p className="text-[10px] text-white/70 line-clamp-1">{msg.replyToText}</p>
+                <p className="text-[10px] text-foreground/70 line-clamp-1">{msg.replyToText}</p>
               </div>
             )}
             <p className="whitespace-pre-wrap break-words line-clamp-3">
@@ -862,12 +861,12 @@ function MessageContextMenu({
         </div>
 
         {/* Emoji reaction row */}
-        <div className="flex items-center justify-around px-6 py-3 border-b border-white/[0.07]">
+        <div className="flex items-center justify-around px-6 py-3 border-b border-border">
           {REACTIONS.map(({ key, emoji }) => (
             <button
               key={key}
               onClick={() => { onReact(key); onClose(); }}
-              className="w-12 h-12 flex items-center justify-center text-[26px] hover:bg-white/10 active:scale-90 transition-all rounded-full"
+              className="w-12 h-12 flex items-center justify-center text-[26px] hover:bg-foreground/8 active:scale-90 transition-all rounded-full"
             >
               {emoji}
             </button>
@@ -880,7 +879,7 @@ function MessageContextMenu({
             <button
               key={a.label}
               onClick={() => { a.fn(); onClose(); }}
-              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.06] active:bg-white/10 transition text-left"
+              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-foreground/[0.06] active:bg-foreground/10 transition text-left"
             >
               <a.icon className={`w-5 h-5 shrink-0 ${a.danger ? "text-red-400" : "text-[#FF7A1A]"}`} />
               <span className={`text-sm font-medium ${a.danger ? "text-red-400" : "text-foreground"}`}>{a.label}</span>
@@ -891,7 +890,7 @@ function MessageContextMenu({
         {/* Cancel */}
         <button
           onClick={onClose}
-          className="w-full py-4 text-sm font-semibold text-muted-foreground border-t border-white/[0.07] hover:bg-white/[0.04] transition"
+          className="w-full py-4 text-sm font-semibold text-muted-foreground border-t border-border hover:bg-foreground/[0.04] transition"
         >
           {t("cancel")}
         </button>
@@ -938,7 +937,7 @@ function MessageBody({
         target="_blank"
         rel="noreferrer"
         className={`flex items-center gap-3 rounded-lg p-2.5 max-w-xs transition ${
-          isMine ? "bg-white/15 hover:bg-white/25" : "bg-black/10 hover:bg-black/15 dark:bg-white/5 dark:hover:bg-white/10"
+          isMine ? "bg-white/15 hover:bg-white/25" : "bg-foreground/[0.07] hover:bg-foreground/[0.11]"
         }`}
       >
         <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${isMine ? "bg-white/20" : "bg-primary/20"}`}>
@@ -1266,7 +1265,7 @@ function AudioRecorder({
       <button
         onClick={start}
         title={t("voiceMessage")}
-        className="hover:bg-white/5 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition"
+        className="hover:bg-foreground/5 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition"
       >
         <Mic className="w-5 h-5 text-primary" />
       </button>
@@ -1306,7 +1305,7 @@ function AudioRecorder({
         {/* Lock button */}
         <button
           onClick={() => changeMode("locked")}
-          className="w-9 h-9 rounded-full border border-border bg-card/80 flex items-center justify-center shrink-0 hover:bg-white/10 active:scale-90 transition"
+          className="w-9 h-9 rounded-full border border-border bg-card/80 flex items-center justify-center shrink-0 hover:bg-foreground/8 active:scale-90 transition"
         >
           <Lock className="w-4 h-4 text-muted-foreground" />
         </button>

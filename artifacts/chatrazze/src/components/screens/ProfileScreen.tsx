@@ -58,9 +58,8 @@ function Row({ icon, label, sub, onClick, noChevron, preview, labelColor }: {
 }) {
   return (
     <button onClick={onClick}
-      className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/5 active:scale-[0.99] transition text-left">
-      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-        style={{ background: "rgba(255,255,255,0.07)" }}>{icon}</div>
+      className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-foreground/5 active:scale-[0.99] transition text-left">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-foreground/[0.07]">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: labelColor }}>{label}</p>
         {sub && <p className="text-xs text-muted-foreground truncate mt-0.5">{sub}</p>}
@@ -73,8 +72,7 @@ function Row({ icon, label, sub, onClick, noChevron, preview, labelColor }: {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-4 rounded-2xl overflow-hidden divide-y divide-white/5"
-      style={{ background: "rgba(255,255,255,0.05)" }}>{children}</div>
+    <div className="mx-4 rounded-2xl overflow-hidden divide-y divide-border bg-card border border-border">{children}</div>
   );
 }
 
@@ -89,12 +87,12 @@ function BottomSheet({ open, onClose, title, children }: {
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-[60] rounded-t-3xl overflow-hidden flex flex-col"
-        style={{ background: "#111", maxHeight: "85vh" }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
+      <div className="fixed inset-x-0 bottom-0 z-[60] rounded-t-3xl overflow-hidden flex flex-col bg-card border-t border-border"
+        style={{ maxHeight: "85vh" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h2 className="font-semibold text-base">{title}</h2>
           <button onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center">
+            className="w-8 h-8 rounded-full hover:bg-foreground/8 flex items-center justify-center">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -128,16 +126,14 @@ function InviteSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <BottomSheet open={open} onClose={onClose} title={t("inviteFriends")}>
       <div className="p-5 space-y-4">
-        <div className="flex items-center gap-3 p-4 rounded-2xl border border-white/10"
-          style={{ background: "rgba(255,255,255,0.04)" }}>
+        <div className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-muted/50">
           <Link className="w-4 h-4 text-[#FF7A1A] shrink-0" />
           <p className="flex-1 text-sm text-muted-foreground truncate">{link}</p>
         </div>
         <p className="text-sm text-muted-foreground text-center">{t("inviteShareDesc")}</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={copyLink}
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition active:scale-95"
-            style={{ background: "rgba(255,255,255,0.08)", color: copied ? "#4ade80" : "white" }}>
+            className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition active:scale-95 bg-foreground/8 ${copied ? "text-green-500" : "text-foreground"}`}>
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied ? t("linkCopied") : t("copyLink")}
           </button>
@@ -521,13 +517,13 @@ export default function ProfileScreen({ onGoToChat }: {
   /* ──────────────────── EDIT PROFILE VIEW ──────────────────── */
   if (view === "edit") {
     return (
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-black">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
         <div className="flex items-center gap-3 px-4 pt-5 pb-4 shrink-0">
           <button onClick={() => setView("settings")}
-            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 transition active:scale-90">
-            <ArrowLeft className="w-5 h-5 text-white" />
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-foreground/8 transition active:scale-90">
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="flex-1 text-center text-base font-semibold text-white">{t("profileTitle")}</h1>
+          <h1 className="flex-1 text-center text-base font-semibold">{t("profileTitle")}</h1>
           <div className="w-9" />
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -555,7 +551,7 @@ export default function ProfileScreen({ onGoToChat }: {
             </button>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickFile} />
           </div>
-          <div className="mx-4 rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <div className="mx-4 rounded-2xl overflow-hidden bg-card border border-border divide-y divide-border">
             <EditRow label={t("bioLabel")} value={bio} placeholder={t("defaultBio")}
               editable onChange={setBio} onSave={save} saving={saving} multiline />
             <EditRow label={t("nameLabel")} value={name} placeholder={t("nameLabel")}
@@ -565,15 +561,13 @@ export default function ProfileScreen({ onGoToChat }: {
               <div className="flex items-center gap-4 px-5 py-3">
                 <p className="flex-1 text-sm text-muted-foreground">{user.email || "—"}</p>
               </div>
-              <div className="mx-5 border-b border-white/8" />
             </div>
             <div>
               <p className="px-5 pt-4 pb-1 text-xs text-muted-foreground uppercase tracking-wider">{t("linksLabel")}</p>
-              <button className="w-full flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition text-left">
+              <button className="w-full flex items-center gap-4 px-5 py-3 hover:bg-foreground/5 transition text-left">
                 <p className="flex-1 text-sm font-medium" style={{ color: "#FF7A1A" }}>{t("addLinkBtn")}</p>
                 <Link className="w-4 h-4 text-muted-foreground shrink-0" />
               </button>
-              <div className="mx-5 border-b border-white/8" />
             </div>
           </div>
           <p className="text-center text-[11px] text-muted-foreground py-6">Chatrazze • {t("poweredBy")}</p>
@@ -584,14 +578,13 @@ export default function ProfileScreen({ onGoToChat }: {
 
   /* ──────────────────── SETTINGS VIEW ──────────────────── */
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-black">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       <div className="flex-1 overflow-y-auto scrollbar-thin pb-8">
 
         {/* Avatar + Name hero */}
         <div className="flex flex-col items-center pt-10 pb-6 px-4">
           <button onClick={() => setView("edit")}
-            className="mb-4 px-5 py-2 rounded-full text-sm text-white/70 border border-white/15 hover:bg-white/5 active:scale-95 transition"
-            style={{ background: "rgba(255,255,255,0.06)" }}>
+            className="mb-4 px-5 py-2 rounded-full text-sm text-muted-foreground border border-border hover:bg-foreground/5 active:scale-95 transition bg-foreground/[0.06]">
             {bio.length > 36 ? bio.slice(0, 36) + "…" : bio}
           </button>
           <button onClick={() => setView("edit")} className="relative active:opacity-80 transition">
@@ -605,7 +598,7 @@ export default function ProfileScreen({ onGoToChat }: {
             )}
           </button>
           <button onClick={() => setView("edit")} className="mt-4 active:opacity-70 transition">
-            <h1 className="text-2xl font-bold text-white">{name || user.email || "—"}</h1>
+            <h1 className="text-2xl font-bold">{name || user.email || "—"}</h1>
           </button>
         </div>
 
@@ -638,15 +631,14 @@ export default function ProfileScreen({ onGoToChat }: {
         <SectionLabel label={t("appearanceSection")} />
         <Card>
           <button onClick={() => { toggle(); show(theme === "dark" ? t("lightThemeOn") : t("darkThemeOn")); }}
-            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-white/5 active:scale-[0.99] transition text-left">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-              style={{ background: "rgba(255,255,255,0.07)" }}>
+            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-foreground/5 active:scale-[0.99] transition text-left">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-foreground/[0.07]">
               {theme === "dark" ? <Sun className="w-4 h-4 text-[#FF7A1A]" /> : <Moon className="w-4 h-4 text-[#FF7A1A]" />}
             </div>
             <p className="flex-1 text-sm font-medium">
               {theme === "dark" ? t("switchToLight") : t("switchToDark")}
             </p>
-            <span className={`w-11 h-6 rounded-full p-0.5 flex transition-all ${theme === "light" ? "bg-[#FF7A1A]" : "bg-white/15"}`}>
+            <span className={`w-11 h-6 rounded-full p-0.5 flex transition-all ${theme === "light" ? "bg-[#FF7A1A]" : "bg-foreground/15"}`}>
               <span className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${theme === "light" ? "translate-x-5" : "translate-x-0"}`} />
             </span>
           </button>
@@ -691,11 +683,11 @@ export default function ProfileScreen({ onGoToChat }: {
       {/* Chat Background Picker */}
       {showBgPicker && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center">
-          <div className="w-full rounded-t-3xl shadow-2xl overflow-hidden" style={{ background: "#111" }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+          <div className="w-full rounded-t-3xl shadow-2xl overflow-hidden bg-card border-t border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="font-semibold text-sm">{t("chatBgTitle")}</h2>
               <button onClick={() => setShowBgPicker(false)}
-                className="w-8 h-8 rounded-full hover:bg-white/5 flex items-center justify-center">
+                className="w-8 h-8 rounded-full hover:bg-foreground/5 flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>

@@ -161,7 +161,7 @@ export default function Sidebar({
             <div className="relative">
               <button
                 onClick={() => setShowLang((v) => !v)}
-                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-foreground flex items-center justify-center transition active:scale-95"
+                className="w-9 h-9 rounded-full bg-foreground/10 hover:bg-foreground/[0.15] text-foreground flex items-center justify-center transition active:scale-95"
                 title="Language"
               >
                 <Globe className="w-5 h-5" />
@@ -175,7 +175,7 @@ export default function Sidebar({
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition ${
                         lang === l.code
                           ? "bg-primary text-primary-foreground font-semibold"
-                          : "hover:bg-white/10"
+                          : "hover:bg-foreground/8"
                       }`}
                     >
                       <span className="text-[11px] font-mono font-bold opacity-60">{l.iso}</span>
@@ -202,14 +202,14 @@ export default function Sidebar({
                   <div className="absolute right-0 top-12 z-50 bg-popover border border-border rounded-2xl shadow-2xl p-2 min-w-[180px] flex flex-col gap-1">
                     <button
                       onClick={() => { setShowNewMenu(false); setShowNewChat(true); }}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm hover:bg-white/5 transition text-left"
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm hover:bg-foreground/5 transition text-left"
                     >
                       <MessageSquarePlus className="w-4 h-4 text-primary shrink-0" />
                       {t("newChat")}
                     </button>
                     <button
                       onClick={() => { setShowNewMenu(false); setShowNewGroup(true); }}
-                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm hover:bg-white/5 transition text-left"
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm hover:bg-foreground/5 transition text-left"
                     >
                       <Users className="w-4 h-4 text-accent shrink-0" />
                       {t("newGroup")}
@@ -251,7 +251,7 @@ export default function Sidebar({
                 className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition ${
                   filter === f
                     ? "bg-primary text-primary-foreground shadow"
-                    : "bg-white/5 text-muted-foreground hover:text-foreground"
+                    : "bg-foreground/5 text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
@@ -292,10 +292,10 @@ export default function Sidebar({
           return (
             <div
               key={c.id}
-              className={`group relative w-full flex items-stretch border-l-2 border-b border-b-white/10 transition ${
+              className={`group relative w-full flex items-stretch border-l-2 border-b border-b-border transition ${
                 active
-                  ? "bg-white/5 border-l-primary"
-                  : "border-l-transparent hover:bg-white/5"
+                  ? "bg-foreground/5 border-l-primary"
+                  : "border-l-transparent hover:bg-foreground/5"
               }`}
             >
               <button
@@ -471,7 +471,7 @@ function NewChatDialog({
       <div className="glass w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="font-semibold">{t("newChat")}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-foreground/5">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -495,7 +495,7 @@ function NewChatDialog({
               <button
                 key={u.uid}
                 onClick={() => onPicked(u)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-foreground/5 transition text-left"
               >
                 <Avatar name={u.displayName} photoURL={u.photoURL} size={40} />
                 <div className="min-w-0 flex-1">
@@ -595,7 +595,7 @@ function NewGroupDialog({
             <Users className="w-5 h-5 text-accent" />
             <h3 className="font-semibold">{t("newGroup")}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-foreground/5">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -659,7 +659,7 @@ function NewGroupDialog({
                 <button
                   key={u.uid}
                   onClick={() => toggleSelect(u)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition text-left"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-foreground/5 transition text-left"
                 >
                   <Avatar name={u.displayName} photoURL={u.photoURL} size={36} />
                   <div className="min-w-0 flex-1">
