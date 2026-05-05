@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bell, Database, Eye, Globe, Info, Trash2, Volume2 } from "lucide-react";
+import { ArrowLeft, Bell, Database, Eye, Globe, Info, Music, Play, Trash2, Volume2 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useTheme } from "@/hooks/useTheme";
 import { useLang, LANG_LIST } from "@/hooks/useLang";
@@ -147,33 +147,126 @@ function ChatsPanel() {
   );
 }
 
+/* ─── Ringtones ───────────────────────────────────────────────────────────── */
+export const RINGTONE_KEY = "chatrazze:notifications:ringtone";
+
+type RingtoneDef = { id: string; label: string; play: (ctx: AudioContext) => void };
+
+function tone(
+  ctx: AudioContext,
+  freq: number, t: number, dur: number, vol: number,
+  type: OscillatorType = "sine",
+) {
+  const osc = ctx.createOscillator();
+  const g   = ctx.createGain();
+  osc.connect(g); g.connect(ctx.destination);
+  osc.type = type; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, ctx.currentTime + t);
+  g.gain.linearRampToValueAtTime(vol, ctx.currentTime + t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + dur);
+  osc.start(ctx.currentTime + t);
+  osc.stop(ctx.currentTime + t + dur + 0.05);
+}
+
+export const RINGTONES: RingtoneDef[] = [
+  {
+    id: "ding",
+    label: "Ding",
+    play: (ctx) => {
+      tone(ctx, 880, 0,    0.13, 0.35);
+      tone(ctx, 1100, 0.11, 0.11, 0.25);
+    },
+  },
+  {
+    id: "chime",
+    label: "Chime",
+    play: (ctx) => {
+      [523.25, 659.25, 783.99].forEach((f, i) => tone(ctx, f, i * 0.13, 0.38, 0.28));
+    },
+  },
+  {
+    id: "tritone",
+    label: "Tri-tone",
+    play: (ctx) => {
+      [1046.5, 880, 698.46].forEach((f, i) => tone(ctx, f, i * 0.11, 0.20, 0.30));
+    },
+  },
+  {
+    id: "pulse",
+    label: "Pulse",
+    play: (ctx) => {
+      [0, 0.09, 0.18].forEach((t) => tone(ctx, 1200, t, 0.06, 0.22, "square"));
+    },
+  },
+  {
+    id: "crystal",
+    label: "Crystal",
+    play: (ctx) => {
+      [[1318.5, 0], [1567.98, 0.08], [2093, 0.16], [1567.98, 0.32]].forEach(
+        ([f, t]) => tone(ctx, f, t, 0.45, 0.18),
+      );
+    },
+  },
+  {
+    id: "bamboo",
+    label: "Bamboo",
+    play: (ctx) => {
+      tone(ctx, 220, 0,    0.08, 0.40, "triangle");
+      tone(ctx, 880, 0.05, 0.25, 0.20);
+      tone(ctx, 220, 0.18, 0.08, 0.30, "triangle");
+      tone(ctx, 1100, 0.22, 0.18, 0.15);
+    },
+  },
+  {
+    id: "cosmic",
+    label: "Cosmic",
+    play: (ctx) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(400, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.25);
+      osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.45);
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.30, ctx.currentTime + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.50);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.55);
+      tone(ctx, 1800, 0.28, 0.15, 0.15);
+    },
+  },
+  {
+    id: "bell",
+    label: "Bell",
+    play: (ctx) => {
+      const freqs = [440, 880, 1320, 1760];
+      freqs.forEach((f, i) => {
+        tone(ctx, f, 0, 0.6 - i * 0.08, 0.28 / (i + 1));
+      });
+    },
+  },
+];
+
+function getAudioCtx() {
+  const AudioCtx = window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  return new AudioCtx();
+}
+
+export function playRingtoneById(id: string) {
+  try {
+    const ctx = getAudioCtx();
+    const r = RINGTONES.find((x) => x.id === id) ?? RINGTONES[0];
+    r.play(ctx);
+    setTimeout(() => ctx.close(), 1500);
+  } catch {}
+}
+
 export function playNotificationSound() {
   const soundEnabled = localStorage.getItem("chatrazze:notifications:sound") !== "0";
   if (!soundEnabled) return;
-  try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-    const gainNode = ctx.createGain();
-    gainNode.connect(ctx.destination);
-    [
-      { freq: 880, startTime: now,       duration: 0.12, gain: 0.35 },
-      { freq: 1100, startTime: now + 0.10, duration: 0.10, gain: 0.25 },
-    ].forEach(({ freq, startTime, duration, gain }) => {
-      const osc = ctx.createOscillator();
-      const g   = ctx.createGain();
-      osc.connect(g);
-      g.connect(gainNode);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, startTime);
-      g.gain.setValueAtTime(0, startTime);
-      g.gain.linearRampToValueAtTime(gain, startTime + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    });
-    setTimeout(() => ctx.close(), 600);
-  } catch {}
+  const id = localStorage.getItem(RINGTONE_KEY) ?? "ding";
+  playRingtoneById(id);
 }
 
 export function sendBrowserNotification(title: string, body: string) {
@@ -256,9 +349,68 @@ function NotificationsPanel() {
         value={sound}
         onChange={(v) => { setSound(v); if (v) playNotificationSound(); }}
       />
+      {sound && <RingtonePicker />}
       <ToggleRow label={t("notifPreview")} description={t("notifPreviewDesc")} value={enabled} onChange={setEnabled} />
       <ToggleRow label={t("notifPreview")} value={preview} onChange={setPreview} />
     </>
+  );
+}
+
+function RingtonePicker() {
+  const { t } = useLang();
+  const [selected, setSelected] = useState(
+    () => localStorage.getItem(RINGTONE_KEY) ?? "ding",
+  );
+  const [playing, setPlaying] = useState<string | null>(null);
+
+  function pick(id: string) {
+    setSelected(id);
+    localStorage.setItem(RINGTONE_KEY, id);
+    setPlaying(id);
+    playRingtoneById(id);
+    setTimeout(() => setPlaying(null), 900);
+  }
+
+  return (
+    <div className="glass rounded-2xl px-4 py-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Music className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{t("ringtoneLabel")}</p>
+          <p className="text-xs text-muted-foreground">{t("ringtoneTap")}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {RINGTONES.map((r) => {
+          const isActive  = selected === r.id;
+          const isPlaying = playing  === r.id;
+          return (
+            <button
+              key={r.id}
+              onClick={() => pick(r.id)}
+              className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 text-start active:scale-95 ${
+                isActive
+                  ? "bg-primary text-white shadow-md shadow-primary/30"
+                  : "bg-foreground/5 hover:bg-foreground/10"
+              }`}
+            >
+              <span className={`shrink-0 transition-transform ${isPlaying ? "scale-125" : ""}`}>
+                {isPlaying
+                  ? <Play className="w-3.5 h-3.5 fill-current" />
+                  : <Music className="w-3.5 h-3.5 opacity-60" />
+                }
+              </span>
+              <span className="truncate">{r.label}</span>
+              {isActive && !isPlaying && (
+                <span className="ml-auto w-2 h-2 rounded-full bg-white shrink-0" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
