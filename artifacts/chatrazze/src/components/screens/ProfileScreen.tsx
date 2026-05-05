@@ -462,7 +462,7 @@ export default function ProfileScreen({ onGoToChat }: {
   const { user } = useAuth();
   const { show } = useToast();
   const { theme, toggle } = useTheme();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [name, setName] = useState(user?.displayName ?? "");
   const [bio, setBio] = useState(t("defaultBio"));
   const [saving, setSaving] = useState(false);
@@ -700,7 +700,7 @@ export default function ProfileScreen({ onGoToChat }: {
                     className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition ${isActive ? "border-[#FF7A1A] scale-105" : "border-transparent hover:border-white/20"}`}>
                     <div className="w-full h-full" style={bg.previewStyle} />
                     <div className="absolute inset-x-0 bottom-0 bg-black/50 py-1">
-                      <p className="text-[10px] text-white font-medium text-center truncate">{bg.labelAr}</p>
+                      <p className="text-[10px] text-white font-medium text-center truncate">{lang === "ar" ? bg.labelAr : bg.labelEn}</p>
                     </div>
                     {isActive && (
                       <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
