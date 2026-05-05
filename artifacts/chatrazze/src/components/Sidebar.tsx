@@ -5,7 +5,10 @@ import { AppUser, getUser, searchUsers } from "@/lib/userService";
 import Avatar from "@/components/Avatar";
 import { useLang, LANG_LIST } from "@/hooks/useLang";
 import { useToast } from "@/components/Toast";
+import { sendChatRequest, listenToPendingRequests, getRequestBetween } from "@/lib/requestService";
+import ChatRequestsPanel from "@/components/ChatRequestsPanel";
 import {
+  ArrowLeft,
   Check,
   Globe,
   Hand,
@@ -14,6 +17,7 @@ import {
   Mic,
   Search,
   Star,
+  UserPlus,
   Users,
   Video,
   X,
@@ -39,6 +43,8 @@ export default function Sidebar({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
+  const [showRequests, setShowRequests] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const { lang, setLang, t } = useLang();
@@ -56,6 +62,15 @@ export default function Sidebar({
     if (!user) return;
     const unsub = listenToUserChats(user.uid, setChats);
     return () => { unsub(); };
+  }, [user]);
+
+  /* Listen for incoming chat requests */
+  useEffect(() => {
+    if (!user) return;
+    const unsub = listenToPendingRequests(user.uid, (reqs) => {
+      setPendingCount(reqs.length);
+    });
+    return () => unsub();
   }, [user]);
 
   useEffect(() => {
@@ -184,6 +199,22 @@ export default function Sidebar({
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Requests badge button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowRequests(true)}
+                className="w-9 h-9 rounded-full bg-foreground/10 hover:bg-foreground/[0.15] text-foreground flex items-center justify-center transition active:scale-95"
+                title={t("requestsTitle")}
+              >
+                <UserPlus className="w-4 h-4" />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#FF4E00] text-white text-[10px] font-bold flex items-center justify-center border border-background">
+                    {pendingCount > 9 ? "9+" : pendingCount}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* New Chat/Group button */}
@@ -378,17 +409,10 @@ export default function Sidebar({
         <NewChatDialog
           currentUid={user.uid}
           onClose={() => setShowNewChat(false)}
-          onPicked={async (u) => {
-            try {
-              const id = await createChat(user.uid, u.uid);
-              setPeers((p) => ({ ...p, [u.uid]: u }));
-              onSelectChat(id, u);
-              setShowNewChat(false);
-            } catch (err) {
-              const msg = (err as { message?: string })?.message ?? "Unknown error";
-              console.error("[Sidebar] createChat failed:", err);
-              toast.show(`Chat creation failed: ${msg}`);
-            }
+          onOpenChat={(chatId, u) => {
+            setPeers((p) => ({ ...p, [u.uid]: u }));
+            onSelectChat(chatId, u);
+            setShowNewChat(false);
           }}
         />
       )}
@@ -400,6 +424,17 @@ export default function Sidebar({
           onCreated={(chatId, groupPeer) => {
             onSelectChat(chatId, groupPeer);
             setShowNewGroup(false);
+          }}
+        />
+      )}
+
+      {showRequests && (
+        <ChatRequestsPanel
+          myUid={user.uid}
+          onClose={() => setShowRequests(false)}
+          onOpenChat={(chatId, p) => {
+            setPeers((prev) => ({ ...prev, [p.uid]: p }));
+            onSelectChat(chatId, p);
           }}
         />
       )}
@@ -435,37 +470,180 @@ function useDebounced<T>(value: T, delay = 250) {
 function NewChatDialog({
   currentUid,
   onClose,
-  onPicked,
+  onOpenChat,
 }: {
   currentUid: string;
   onClose: () => void;
-  onPicked: (u: AppUser) => void;
+  onOpenChat: (chatId: string, u: AppUser) => void;
 }) {
   const { t } = useLang();
+  const toast = useToast();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
+  // Phase: "search" | "profile"
+  const [selected, setSelected] = useState<AppUser | null>(null);
+  const [reqStatus, setReqStatus] = useState<"none" | "pending" | "sent" | "connected" | "loading">("none");
+  const [existingChatId, setExistingChatId] = useState<string | null>(null);
 
   const debounced = useDebounced(q, 250);
 
   useEffect(() => {
     let cancelled = false;
-    if (!debounced.trim()) {
-      setResults([]);
-      return;
-    }
+    if (!debounced.trim()) { setResults([]); return; }
     setLoading(true);
     searchUsers(debounced)
-      .then((r) => {
-        if (cancelled) return;
-        setResults(r.filter((u) => u.uid !== currentUid));
-      })
+      .then((r) => { if (!cancelled) setResults(r.filter((u) => u.uid !== currentUid)); })
       .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [debounced, currentUid]);
 
+  async function openProfile(u: AppUser) {
+    setSelected(u);
+    setReqStatus("loading");
+    try {
+      // Check if direct chat already exists
+      const { data: existingChat } = await import("@/lib/supabase").then(({ supabase }) =>
+        supabase.from("chats").select("id, members").contains("members", [currentUid, u.uid])
+      );
+      const direct = (existingChat ?? []).find(
+        (c: { members: string[] }) => Array.isArray(c.members) && c.members.length === 2
+      );
+      if (direct) {
+        setExistingChatId(direct.id as string);
+        setReqStatus("connected");
+        return;
+      }
+      // Check request status
+      const req = await getRequestBetween(currentUid, u.uid);
+      if (!req) setReqStatus("none");
+      else if (req.status === "accepted") setReqStatus("connected");
+      else if (req.status === "pending") setReqStatus("pending");
+      else setReqStatus("none");
+    } catch {
+      setReqStatus("none");
+    }
+  }
+
+  async function handleSendRequest() {
+    if (!selected) return;
+    setReqStatus("loading");
+    try {
+      const result = await sendChatRequest(currentUid, selected.uid);
+      if (result === "sent") {
+        setReqStatus("sent");
+        toast.show(t("requestSent"));
+      } else if (result === "already_pending") {
+        setReqStatus("pending");
+        toast.show(t("requestPending"));
+      } else {
+        setReqStatus("connected");
+        toast.show(t("alreadyConnected"));
+      }
+    } catch {
+      setReqStatus("none");
+      toast.show(t("couldNotSend"));
+    }
+  }
+
+  async function handleOpenExistingChat() {
+    if (!selected || !existingChatId) return;
+    onOpenChat(existingChatId, selected);
+    onClose();
+  }
+
+  /* ── Profile view ── */
+  if (selected) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="glass w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+            <button
+              onClick={() => setSelected(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/5 transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h3 className="font-semibold text-sm">{t("viewProfile")}</h3>
+            <div className="flex-1" />
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-foreground/5">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Profile content */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin">
+            {/* Avatar + name hero */}
+            <div className="flex flex-col items-center gap-3 pt-8 pb-5 px-6">
+              <div className="relative">
+                <Avatar name={selected.displayName} photoURL={selected.photoURL} size={88} />
+                {selected.online && (
+                  <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-secondary border-2 border-background" />
+                )}
+              </div>
+              <div className="text-center">
+                <h2 className="text-lg font-bold">{selected.displayName}</h2>
+                {selected.email && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{selected.email}</p>
+                )}
+                {selected.bio && (
+                  <p className="text-sm text-muted-foreground mt-2 max-w-xs">{selected.bio}</p>
+                )}
+              </div>
+              <span className={`text-xs font-medium px-3 py-1 rounded-full ${selected.online ? "bg-secondary/20 text-secondary" : "bg-muted text-muted-foreground"}`}>
+                {selected.online ? t("onlineCapital") : t("offlineCapital")}
+              </span>
+            </div>
+
+            {/* Info row */}
+            {selected.phone && (
+              <div className="mx-4 mb-3 p-3 rounded-xl bg-foreground/5 flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground text-xs">{t("phoneLabel")}</span>
+                <span className="flex-1">{selected.phone}</span>
+              </div>
+            )}
+
+            {/* Action area */}
+            <div className="px-4 pb-6 pt-2">
+              {reqStatus === "loading" && (
+                <div className="flex justify-center py-4">
+                  <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+              )}
+
+              {reqStatus === "connected" && (
+                <button
+                  onClick={handleOpenExistingChat}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white font-semibold text-sm shadow hover:opacity-90 active:scale-[0.98] transition"
+                >
+                  {t("openChat")}
+                </button>
+              )}
+
+              {reqStatus === "none" && (
+                <button
+                  onClick={handleSendRequest}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white font-semibold text-sm shadow hover:opacity-90 active:scale-[0.98] transition"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  {t("sendRequest")}
+                </button>
+              )}
+
+              {(reqStatus === "pending" || reqStatus === "sent") && (
+                <div className="w-full py-3 rounded-xl border border-border text-center text-sm text-muted-foreground">
+                  ⏳ {t("requestPending")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Search view ── */
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="glass w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -494,7 +672,7 @@ function NewChatDialog({
             {results.map((u) => (
               <button
                 key={u.uid}
-                onClick={() => onPicked(u)}
+                onClick={() => openProfile(u)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-foreground/5 transition text-left"
               >
                 <Avatar name={u.displayName} photoURL={u.photoURL} size={40} />

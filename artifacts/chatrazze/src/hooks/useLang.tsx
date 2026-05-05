@@ -165,6 +165,7 @@ const T = {
     editBtn:"Edit", unknownBrowser:"Unknown browser", unknownOS:"Unknown OS",
     reply:"Reply", copyText:"Copy text", deleteMsg:"Delete", replyingTo:"Replying to",
     msgCopied:"Copied!", you:"You", forwardMsg:"Forward",
+    requestsTitle:"Chat Requests", sendRequest:"Send Request", requestSent:"Request sent!", requestPending:"Request pending", alreadyConnected:"Already connected", acceptRequest:"Accept", rejectRequest:"Decline", noPendingRequests:"No pending requests", requestAccepted:"Request accepted — chat opened!", requestRejected:"Request declined", wantsToChat:"wants to start a chat with you", openChat:"Open Chat",
   },
   ar: {
     status:"الحالة", calls:"المكالمات", communities:"المجموعات", chats:"المحادثات", profile:"الملف الشخصي",
@@ -317,6 +318,7 @@ const T = {
     editBtn:"تعديل", unknownBrowser:"متصفح غير معروف", unknownOS:"نظام غير معروف",
     reply:"رد", copyText:"نسخ النص", deleteMsg:"حذف", replyingTo:"رداً على",
     msgCopied:"تم النسخ!", you:"أنت", forwardMsg:"إعادة إرسال",
+    requestsTitle:"طلبات المحادثة", sendRequest:"إرسال طلب", requestSent:"تم إرسال الطلب!", requestPending:"الطلب معلّق", alreadyConnected:"محادثة موجودة بالفعل", acceptRequest:"قبول", rejectRequest:"رفض", noPendingRequests:"لا توجد طلبات معلّقة", requestAccepted:"تم قبول الطلب — تم فتح المحادثة!", requestRejected:"تم رفض الطلب", wantsToChat:"يريد بدء محادثة معك", openChat:"فتح المحادثة",
   },
   fr: {
     status:"Statut", calls:"Appels", communities:"Communautés", chats:"Discussions", profile:"Profil",
@@ -465,6 +467,7 @@ const T = {
     editBtn:"Modifier", cancel:"Annuler", unknownBrowser:"Navigateur inconnu", unknownOS:"Système inconnu",
     reply:"Répondre", copyText:"Copier le texte", deleteMsg:"Supprimer", replyingTo:"En réponse à",
     msgCopied:"Copié!", you:"Vous", forwardMsg:"Transférer",
+    requestsTitle:"Demandes de chat", sendRequest:"Envoyer une demande", requestSent:"Demande envoyée!", requestPending:"Demande en attente", alreadyConnected:"Déjà connecté", acceptRequest:"Accepter", rejectRequest:"Refuser", noPendingRequests:"Aucune demande en attente", requestAccepted:"Demande acceptée — chat ouvert!", requestRejected:"Demande refusée", wantsToChat:"veut démarrer une discussion avec vous", openChat:"Ouvrir le chat",
   },
   es: {
     status:"Estado", calls:"Llamadas", communities:"Comunidades", chats:"Chats", profile:"Perfil",
@@ -612,6 +615,7 @@ const T = {
     editBtn:"Editar", cancel:"Cancelar", unknownBrowser:"Navegador desconocido", unknownOS:"Sistema desconocido",
     reply:"Responder", copyText:"Copiar texto", deleteMsg:"Eliminar", replyingTo:"Respondiendo a",
     msgCopied:"¡Copiado!", you:"Tú", forwardMsg:"Reenviar",
+    requestsTitle:"Solicitudes de chat", sendRequest:"Enviar solicitud", requestSent:"¡Solicitud enviada!", requestPending:"Solicitud pendiente", alreadyConnected:"Ya conectado", acceptRequest:"Aceptar", rejectRequest:"Rechazar", noPendingRequests:"No hay solicitudes pendientes", requestAccepted:"Solicitud aceptada — ¡chat abierto!", requestRejected:"Solicitud rechazada", wantsToChat:"quiere iniciar un chat contigo", openChat:"Abrir chat",
   },
   de: {
     status:"Status", calls:"Anrufe", communities:"Gruppen", chats:"Chats", profile:"Profil",
@@ -760,6 +764,7 @@ const T = {
     editBtn:"Bearbeiten", cancel:"Abbrechen", unknownBrowser:"Unbekannter Browser", unknownOS:"Unbekanntes System",
     reply:"Antworten", copyText:"Text kopieren", deleteMsg:"Löschen", replyingTo:"Antwort an",
     msgCopied:"Kopiert!", you:"Du", forwardMsg:"Weiterleiten",
+    requestsTitle:"Chat-Anfragen", sendRequest:"Anfrage senden", requestSent:"Anfrage gesendet!", requestPending:"Anfrage ausstehend", alreadyConnected:"Bereits verbunden", acceptRequest:"Annehmen", rejectRequest:"Ablehnen", noPendingRequests:"Keine ausstehenden Anfragen", requestAccepted:"Anfrage angenommen — Chat geöffnet!", requestRejected:"Anfrage abgelehnt", wantsToChat:"möchte einen Chat mit dir starten", openChat:"Chat öffnen",
   },
   pt: {
     status:"Status", calls:"Chamadas", communities:"Comunidades", chats:"Conversas", profile:"Perfil",
@@ -908,6 +913,7 @@ const T = {
     editBtn:"Editar", cancel:"Cancelar", unknownBrowser:"Navegador desconhecido", unknownOS:"Sistema desconhecido",
     reply:"Responder", copyText:"Copiar texto", deleteMsg:"Apagar", replyingTo:"Respondendo a",
     msgCopied:"Copiado!", you:"Você", forwardMsg:"Encaminhar",
+    requestsTitle:"Solicitações de chat", sendRequest:"Enviar solicitação", requestSent:"Solicitação enviada!", requestPending:"Solicitação pendente", alreadyConnected:"Já conectado", acceptRequest:"Aceitar", rejectRequest:"Recusar", noPendingRequests:"Nenhuma solicitação pendente", requestAccepted:"Solicitação aceita — chat aberto!", requestRejected:"Solicitação recusada", wantsToChat:"quer iniciar um chat com você", openChat:"Abrir chat",
   },
   it: {
     status:"Stato", calls:"Chiamate", communities:"Comunità", chats:"Chat", profile:"Profilo",
@@ -1056,6 +1062,7 @@ const T = {
     editBtn:"Modifica", cancel:"Annulla", unknownBrowser:"Browser sconosciuto", unknownOS:"Sistema sconosciuto",
     reply:"Rispondi", copyText:"Copia testo", deleteMsg:"Elimina", replyingTo:"In risposta a",
     msgCopied:"Copiato!", you:"Tu", forwardMsg:"Inoltra",
+    requestsTitle:"Richieste di chat", sendRequest:"Invia richiesta", requestSent:"Richiesta inviata!", requestPending:"Richiesta in attesa", alreadyConnected:"Già connesso", acceptRequest:"Accetta", rejectRequest:"Rifiuta", noPendingRequests:"Nessuna richiesta in attesa", requestAccepted:"Richiesta accettata — chat aperta!", requestRejected:"Richiesta rifiutata", wantsToChat:"vuole iniziare una chat con te", openChat:"Apri chat",
   },
   tr: {
     status:"Durum", calls:"Aramalar", communities:"Topluluklar", chats:"Sohbetler", profile:"Profil",
@@ -1204,6 +1211,7 @@ const T = {
     editBtn:"Düzenle", cancel:"İptal", unknownBrowser:"Bilinmeyen tarayıcı", unknownOS:"Bilinmeyen sistem",
     reply:"Yanıtla", copyText:"Metni kopyala", deleteMsg:"Sil", replyingTo:"Yanıtlanıyor:",
     msgCopied:"Kopyalandı!", you:"Sen", forwardMsg:"İlet",
+    requestsTitle:"Sohbet İstekleri", sendRequest:"İstek Gönder", requestSent:"İstek gönderildi!", requestPending:"İstek beklemede", alreadyConnected:"Zaten bağlantı var", acceptRequest:"Kabul Et", rejectRequest:"Reddet", noPendingRequests:"Bekleyen istek yok", requestAccepted:"İstek kabul edildi — sohbet açıldı!", requestRejected:"İstek reddedildi", wantsToChat:"seninle sohbet başlatmak istiyor", openChat:"Sohbeti Aç",
   },
 } as const;
 
