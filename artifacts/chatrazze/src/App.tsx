@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import { LangProvider, useLang } from "@/hooks/useLang";
 import SplashScreen from "@/components/SplashScreen";
 import AuthScreen from "@/components/AuthScreen";
+import AppLockScreen from "@/components/AppLockScreen";
+import { useAppLock } from "@/hooks/useAppLock";
 import Sidebar from "@/components/Sidebar";
 import ChatView from "@/components/ChatView";
 import BottomTabs, { TabKey } from "@/components/BottomTabs";
@@ -263,6 +265,19 @@ function Shell() {
   }
 
   if (!user) return <AuthScreen />;
+
+  // ── App Lock ───────────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const appLock = useAppLock(user.uid);
+  if (appLock.isLocked) {
+    return (
+      <AppLockScreen
+        lockHook={appLock}
+        userName={user.displayName}
+        onDone={appLock.unlock}
+      />
+    );
+  }
 
   function changeTab(t: TabKey) {
     setTab(t);

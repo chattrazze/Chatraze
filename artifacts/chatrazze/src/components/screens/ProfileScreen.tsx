@@ -13,10 +13,12 @@ import { getStarredChats, createChat, sendMessage } from "@/lib/chatService";
 import type { ChatDoc } from "@/lib/chatService";
 import {
   ArrowLeft, Bell, Camera, Check, ChevronRight, Copy, Database,
-  HelpCircle, KeyRound, Laptop, Link, LogOut, Megaphone,
+  HelpCircle, KeyRound, Laptop, Link, Lock, LogOut, Megaphone,
   MessageCircle, Moon, Palette, Pencil, Search, Send,
   Share2, Shield, Smartphone, Star, Sun, UserPlus, X,
 } from "lucide-react";
+import { useAppLock } from "@/hooks/useAppLock";
+import AppLockScreen from "@/components/AppLockScreen";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -471,6 +473,8 @@ export default function ProfileScreen({ onGoToChat }: {
   const [view, setView] = useState<"settings" | "edit">("settings");
   const [sheet, setSheet] = useState<"invite" | "starred" | "broadcast" | "devices" | null>(null);
   const chatBg = useChatBg(user?.uid ?? "");
+  const appLock = useAppLock(user?.uid ?? "");
+  const [showLockSetup, setShowLockSetup] = useState(false);
   const [photoURL, setPhotoURL] = useState<string | null>(user?.photoURL ?? null);
   const [uploading, setUploading] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | undefined>();
@@ -626,6 +630,28 @@ export default function ProfileScreen({ onGoToChat }: {
             label={t("notificationsSetting")} sub={t("notificationsSettingSub")} onClick={() => setPanel("notifications")} />
           <Row icon={<Database className="w-4 h-4 text-[#FF7A1A]" />}
             label={t("storageDataSetting")} sub={t("storageDataSub")} onClick={() => setPanel("storage")} />
+          <button
+            onClick={() => {
+              if (appLock.enabled) {
+                appLock.disableAppLock();
+                show(t("appLockOff"));
+              } else {
+                setShowLockSetup(true);
+              }
+            }}
+            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-foreground/5 active:scale-[0.99] transition text-left"
+          >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-foreground/[0.07]">
+              <Lock className="w-4 h-4 text-[#FF7A1A]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">{t("appLockSetting")}</p>
+              <p className="text-xs text-muted-foreground truncate">{t("appLockSettingSub")}</p>
+            </div>
+            <span className={`w-11 h-6 rounded-full p-0.5 flex transition-all shrink-0 ${appLock.enabled ? "bg-[#FF7A1A]" : "bg-foreground/15"}`}>
+              <span className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${appLock.enabled ? "translate-x-5" : "translate-x-0"}`} />
+            </span>
+          </button>
         </Card>
 
         <SectionLabel label={t("appearanceSection")} />
@@ -671,6 +697,17 @@ export default function ProfileScreen({ onGoToChat }: {
           {t("poweredBy")}
         </p>
       </div>
+
+      {/* App Lock Setup Overlay */}
+      {showLockSetup && (
+        <AppLockScreen
+          lockHook={appLock}
+          userName={user.displayName}
+          initialMode="setup"
+          onDone={() => { setShowLockSetup(false); show(t("passcodeSet")); }}
+          onCancel={() => setShowLockSetup(false)}
+        />
+      )}
 
       {/* ── Sheets ── */}
       <InviteSheet open={sheet === "invite"} onClose={() => setSheet(null)} />

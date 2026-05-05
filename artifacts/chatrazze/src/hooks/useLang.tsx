@@ -166,6 +166,10 @@ const T = {
     reply:"Reply", copyText:"Copy text", deleteMsg:"Delete", replyingTo:"Replying to",
     msgCopied:"Copied!", you:"You", forwardMsg:"Forward",
     requestsTitle:"Chat Requests", sendRequest:"Send Request", requestSent:"Request sent!", requestPending:"Request pending", alreadyConnected:"Already connected", acceptRequest:"Accept", rejectRequest:"Decline", noPendingRequests:"No pending requests", requestAccepted:"Request accepted — chat opened!", requestRejected:"Request declined", wantsToChat:"wants to start a chat with you", openChat:"Open Chat",
+    appLockSetting:"App Lock", appLockSettingSub:"Face ID or passcode", appLockOn:"App lock enabled", appLockOff:"App lock disabled",
+    enterPasscode:"Enter passcode", setPasscode:"Set your passcode", confirmPasscode:"Confirm passcode",
+    passcodeMismatch:"Passcodes don't match", passcodeSet:"Passcode set", wrongPasscode:"Incorrect passcode",
+    useFaceId:"Face ID", biometricFailed:"Biometric failed, use passcode", biometricSetup:"Enable Face ID / Fingerprint", biometricEnabled:"Face ID enabled", biometricNotAvailable:"Biometrics not available",
   },
   ar: {
     status:"الحالة", calls:"المكالمات", communities:"المجموعات", chats:"المحادثات", profile:"الملف الشخصي",
@@ -319,6 +323,10 @@ const T = {
     reply:"رد", copyText:"نسخ النص", deleteMsg:"حذف", replyingTo:"رداً على",
     msgCopied:"تم النسخ!", you:"أنت", forwardMsg:"إعادة إرسال",
     requestsTitle:"طلبات المحادثة", sendRequest:"إرسال طلب", requestSent:"تم إرسال الطلب!", requestPending:"الطلب معلّق", alreadyConnected:"محادثة موجودة بالفعل", acceptRequest:"قبول", rejectRequest:"رفض", noPendingRequests:"لا توجد طلبات معلّقة", requestAccepted:"تم قبول الطلب — تم فتح المحادثة!", requestRejected:"تم رفض الطلب", wantsToChat:"يريد بدء محادثة معك", openChat:"فتح المحادثة",
+    appLockSetting:"قفل التطبيق", appLockSettingSub:"Face ID أو رمز المرور", appLockOn:"تم تفعيل قفل التطبيق", appLockOff:"تم إيقاف قفل التطبيق",
+    enterPasscode:"أدخل رمز المرور", setPasscode:"حدد رمز المرور", confirmPasscode:"تأكيد رمز المرور",
+    passcodeMismatch:"الرموز غير متطابقة", passcodeSet:"تم تعيين رمز المرور", wrongPasscode:"رمز المرور غير صحيح",
+    useFaceId:"Face ID", biometricFailed:"فشل، استخدم رمز المرور", biometricSetup:"تفعيل Face ID / البصمة", biometricEnabled:"تم تفعيل Face ID", biometricNotAvailable:"البيومتري غير متاح",
   },
   fr: {
     status:"Statut", calls:"Appels", communities:"Communautés", chats:"Discussions", profile:"Profil",
@@ -468,6 +476,10 @@ const T = {
     reply:"Répondre", copyText:"Copier le texte", deleteMsg:"Supprimer", replyingTo:"En réponse à",
     msgCopied:"Copié!", you:"Vous", forwardMsg:"Transférer",
     requestsTitle:"Demandes de chat", sendRequest:"Envoyer une demande", requestSent:"Demande envoyée!", requestPending:"Demande en attente", alreadyConnected:"Déjà connecté", acceptRequest:"Accepter", rejectRequest:"Refuser", noPendingRequests:"Aucune demande en attente", requestAccepted:"Demande acceptée — chat ouvert!", requestRejected:"Demande refusée", wantsToChat:"veut démarrer une discussion avec vous", openChat:"Ouvrir le chat",
+    appLockSetting:"Verrouillage", appLockSettingSub:"Face ID ou code", appLockOn:"Verrouillage activé", appLockOff:"Verrouillage désactivé",
+    enterPasscode:"Entrer le code", setPasscode:"Définir le code", confirmPasscode:"Confirmer le code",
+    passcodeMismatch:"Les codes ne correspondent pas", passcodeSet:"Code défini", wrongPasscode:"Code incorrect",
+    useFaceId:"Face ID", biometricFailed:"Biométrie échouée", biometricSetup:"Activer Face ID / Empreinte", biometricEnabled:"Face ID activé", biometricNotAvailable:"Biométrie indisponible",
   },
   es: {
     status:"Estado", calls:"Llamadas", communities:"Comunidades", chats:"Chats", profile:"Perfil",
@@ -616,6 +628,10 @@ const T = {
     reply:"Responder", copyText:"Copiar texto", deleteMsg:"Eliminar", replyingTo:"Respondiendo a",
     msgCopied:"¡Copiado!", you:"Tú", forwardMsg:"Reenviar",
     requestsTitle:"Solicitudes de chat", sendRequest:"Enviar solicitud", requestSent:"¡Solicitud enviada!", requestPending:"Solicitud pendiente", alreadyConnected:"Ya conectado", acceptRequest:"Aceptar", rejectRequest:"Rechazar", noPendingRequests:"No hay solicitudes pendientes", requestAccepted:"Solicitud aceptada — ¡chat abierto!", requestRejected:"Solicitud rechazada", wantsToChat:"quiere iniciar un chat contigo", openChat:"Abrir chat",
+    appLockSetting:"Bloqueo de app", appLockSettingSub:"Face ID o código", appLockOn:"Bloqueo activado", appLockOff:"Bloqueo desactivado",
+    enterPasscode:"Ingresar código", setPasscode:"Establecer código", confirmPasscode:"Confirmar código",
+    passcodeMismatch:"Los códigos no coinciden", passcodeSet:"Código establecido", wrongPasscode:"Código incorrecto",
+    useFaceId:"Face ID", biometricFailed:"Biometría fallida", biometricSetup:"Activar Face ID / Huella", biometricEnabled:"Face ID activado", biometricNotAvailable:"Biometría no disponible",
   },
   de: {
     status:"Status", calls:"Anrufe", communities:"Gruppen", chats:"Chats", profile:"Profil",
@@ -765,6 +781,10 @@ const T = {
     reply:"Antworten", copyText:"Text kopieren", deleteMsg:"Löschen", replyingTo:"Antwort an",
     msgCopied:"Kopiert!", you:"Du", forwardMsg:"Weiterleiten",
     requestsTitle:"Chat-Anfragen", sendRequest:"Anfrage senden", requestSent:"Anfrage gesendet!", requestPending:"Anfrage ausstehend", alreadyConnected:"Bereits verbunden", acceptRequest:"Annehmen", rejectRequest:"Ablehnen", noPendingRequests:"Keine ausstehenden Anfragen", requestAccepted:"Anfrage angenommen — Chat geöffnet!", requestRejected:"Anfrage abgelehnt", wantsToChat:"möchte einen Chat mit dir starten", openChat:"Chat öffnen",
+    appLockSetting:"App-Sperre", appLockSettingSub:"Face ID oder Code", appLockOn:"App-Sperre aktiviert", appLockOff:"App-Sperre deaktiviert",
+    enterPasscode:"Code eingeben", setPasscode:"Code festlegen", confirmPasscode:"Code bestätigen",
+    passcodeMismatch:"Codes stimmen nicht überein", passcodeSet:"Code festgelegt", wrongPasscode:"Falscher Code",
+    useFaceId:"Face ID", biometricFailed:"Biometrie fehlgeschlagen", biometricSetup:"Face ID / Fingerabdruck aktivieren", biometricEnabled:"Face ID aktiviert", biometricNotAvailable:"Biometrie nicht verfügbar",
   },
   pt: {
     status:"Status", calls:"Chamadas", communities:"Comunidades", chats:"Conversas", profile:"Perfil",
@@ -914,6 +934,10 @@ const T = {
     reply:"Responder", copyText:"Copiar texto", deleteMsg:"Apagar", replyingTo:"Respondendo a",
     msgCopied:"Copiado!", you:"Você", forwardMsg:"Encaminhar",
     requestsTitle:"Solicitações de chat", sendRequest:"Enviar solicitação", requestSent:"Solicitação enviada!", requestPending:"Solicitação pendente", alreadyConnected:"Já conectado", acceptRequest:"Aceitar", rejectRequest:"Recusar", noPendingRequests:"Nenhuma solicitação pendente", requestAccepted:"Solicitação aceita — chat aberto!", requestRejected:"Solicitação recusada", wantsToChat:"quer iniciar um chat com você", openChat:"Abrir chat",
+    appLockSetting:"Bloqueio do app", appLockSettingSub:"Face ID ou código", appLockOn:"Bloqueio ativado", appLockOff:"Bloqueio desativado",
+    enterPasscode:"Inserir código", setPasscode:"Definir código", confirmPasscode:"Confirmar código",
+    passcodeMismatch:"Códigos não coincidem", passcodeSet:"Código definido", wrongPasscode:"Código incorreto",
+    useFaceId:"Face ID", biometricFailed:"Biometria falhou", biometricSetup:"Ativar Face ID / Digital", biometricEnabled:"Face ID ativado", biometricNotAvailable:"Biometria indisponível",
   },
   it: {
     status:"Stato", calls:"Chiamate", communities:"Comunità", chats:"Chat", profile:"Profilo",
@@ -1063,6 +1087,10 @@ const T = {
     reply:"Rispondi", copyText:"Copia testo", deleteMsg:"Elimina", replyingTo:"In risposta a",
     msgCopied:"Copiato!", you:"Tu", forwardMsg:"Inoltra",
     requestsTitle:"Richieste di chat", sendRequest:"Invia richiesta", requestSent:"Richiesta inviata!", requestPending:"Richiesta in attesa", alreadyConnected:"Già connesso", acceptRequest:"Accetta", rejectRequest:"Rifiuta", noPendingRequests:"Nessuna richiesta in attesa", requestAccepted:"Richiesta accettata — chat aperta!", requestRejected:"Richiesta rifiutata", wantsToChat:"vuole iniziare una chat con te", openChat:"Apri chat",
+    appLockSetting:"Blocco app", appLockSettingSub:"Face ID o codice", appLockOn:"Blocco attivato", appLockOff:"Blocco disattivato",
+    enterPasscode:"Inserisci codice", setPasscode:"Imposta codice", confirmPasscode:"Conferma codice",
+    passcodeMismatch:"I codici non corrispondono", passcodeSet:"Codice impostato", wrongPasscode:"Codice errato",
+    useFaceId:"Face ID", biometricFailed:"Biometria fallita", biometricSetup:"Attiva Face ID / Impronta", biometricEnabled:"Face ID attivato", biometricNotAvailable:"Biometria non disponibile",
   },
   tr: {
     status:"Durum", calls:"Aramalar", communities:"Topluluklar", chats:"Sohbetler", profile:"Profil",
@@ -1212,6 +1240,10 @@ const T = {
     reply:"Yanıtla", copyText:"Metni kopyala", deleteMsg:"Sil", replyingTo:"Yanıtlanıyor:",
     msgCopied:"Kopyalandı!", you:"Sen", forwardMsg:"İlet",
     requestsTitle:"Sohbet İstekleri", sendRequest:"İstek Gönder", requestSent:"İstek gönderildi!", requestPending:"İstek beklemede", alreadyConnected:"Zaten bağlantı var", acceptRequest:"Kabul Et", rejectRequest:"Reddet", noPendingRequests:"Bekleyen istek yok", requestAccepted:"İstek kabul edildi — sohbet açıldı!", requestRejected:"İstek reddedildi", wantsToChat:"seninle sohbet başlatmak istiyor", openChat:"Sohbeti Aç",
+    appLockSetting:"Uygulama Kilidi", appLockSettingSub:"Face ID veya şifre", appLockOn:"Kilit etkinleştirildi", appLockOff:"Kilit devre dışı",
+    enterPasscode:"Şifre girin", setPasscode:"Şifre belirleyin", confirmPasscode:"Şifreyi onaylayın",
+    passcodeMismatch:"Şifreler eşleşmiyor", passcodeSet:"Şifre belirlendi", wrongPasscode:"Yanlış şifre",
+    useFaceId:"Face ID", biometricFailed:"Biyometri başarısız", biometricSetup:"Face ID / Parmak izi etkinleştir", biometricEnabled:"Face ID etkinleştirildi", biometricNotAvailable:"Biyometri mevcut değil",
   },
 } as const;
 
