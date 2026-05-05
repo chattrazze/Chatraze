@@ -411,29 +411,46 @@ export async function setTyping(chatId: string, uid: string, typing: boolean) {
   await supabase.from("chats").update({ typing: typingMap }).eq("id", chatId);
 }
 
+const MEDIA_BUCKET = "chatrazze-media";
+
 export async function uploadMedia(
   source: File | Blob | string,
   userId: string,
   chatId: string,
 ): Promise<{ url: string; type: MessageType; name: string; mime: string; size: number }> {
-  const isString = typeof source === "string";
-  const url = isString
-    ? source
-    : await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("File read failed"));
-        reader.readAsDataURL(source);
-      });
-  const mime = isString ? "application/octet-stream" : source.type || "application/octet-stream";
-  const size = isString ? 0 : source.size;
-  const name = isString ? `media_${Date.now()}` : "name" in source ? source.name : `media_${Date.now()}`;
+  if (typeof source === "string") {
+    return {
+      url: source,
+      type: "file",
+      name: `media_${Date.now()}`,
+      mime: "application/octet-stream",
+      size: 0,
+    };
+  }
+
+  const mime = source.type || "application/octet-stream";
+  const size = source.size;
+  const origName = "name" in source ? (source as File).name : `media_${Date.now()}`;
+  const ext = origName.includes(".") ? origName.split(".").pop() : "bin";
+  const storagePath = `${chatId}/${userId}_${Date.now()}.${ext}`;
+
   const type: MessageType =
     mime.startsWith("image/") ? "image" :
     mime.startsWith("video/") ? "video" :
     mime.startsWith("audio/") ? "audio" :
     "file";
-  return { url, type, name, mime, size };
+
+  const { error } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, source, { contentType: mime, upsert: false });
+
+  if (error) throw new Error(error.message);
+
+  const { data: publicData } = supabase.storage
+    .from(MEDIA_BUCKET)
+    .getPublicUrl(storagePath);
+
+  return { url: publicData.publicUrl, type, name: origName, mime, size };
 }
 
 export async function addMemberToGroup(chatId: string, memberId: string) {
