@@ -64,6 +64,8 @@ function Shell() {
   const callStartTimeRef  = useRef<number | null>(null);
   const callPeerRef       = useRef<{ uid: string; name: string; direction: "incoming" | "outgoing" } | null>(null);
 
+  const appLock = useAppLock(user?.uid ?? "");
+
   const webrtc = useWebRTC(user?.uid ?? "", user?.displayName ?? user?.email ?? "Me");
   const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, localVideoRef, remoteVideoRef, remoteAudioRef, remoteEarpieceRef } = webrtc;
 
@@ -266,9 +268,6 @@ function Shell() {
 
   if (!user) return <AuthScreen />;
 
-  // ── App Lock ───────────────────────────────────────────────────────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const appLock = useAppLock(user.uid);
   if (appLock.isLocked) {
     return (
       <AppLockScreen
