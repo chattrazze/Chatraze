@@ -131,8 +131,15 @@
   * {
     border-color: hsl(var(--border));
   }
-  html, body, #root {
+  html {
     height: 100%;
+    /* Orange overscroll area on iOS pull-to-refresh */
+    background-color: #FF7A1A;
+    overscroll-behavior-y: none;
+  }
+  body, #root {
+    height: 100%;
+    overscroll-behavior-y: none;
   }
   body {
     font-family: var(--font-sans);

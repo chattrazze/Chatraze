@@ -46,6 +46,7 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 
 // Real emoji reactions — like WhatsApp
@@ -105,6 +106,11 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const headerMenuRef  = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const msgRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [pullY, setPullY]           = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pullStartY   = useRef(0);
+  const isPulling    = useRef(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -142,7 +148,8 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       }
     });
     return () => unsub();
-  }, [chatId, user, peer, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, user, peer, t, refreshKey]);
 
   useEffect(() => {
     const unsub = listenToUser(peer.uid, (u) => {
@@ -345,6 +352,33 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     } else {
       setLockPinError(t("wrongPIN"));
     }
+  }
+
+  /* ── Pull-to-refresh handlers ─────────────────────────────────── */
+  function handlePullStart(e: React.TouchEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (!el || el.scrollTop > 2) return;
+    pullStartY.current = e.touches[0].clientY;
+    isPulling.current  = true;
+  }
+  function handlePullMove(e: React.TouchEvent<HTMLDivElement>) {
+    if (!isPulling.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollTop > 2) { isPulling.current = false; setPullY(0); return; }
+    const delta = e.touches[0].clientY - pullStartY.current;
+    if (delta <= 0) { setPullY(0); return; }
+    setPullY(Math.min(delta * 0.42, 76));
+  }
+  function handlePullEnd() {
+    if (pullY >= 56 && !isRefreshing) {
+      setIsRefreshing(true);
+      setRefreshKey((k) => k + 1);
+      setTimeout(() => { setIsRefreshing(false); }, 1500);
+    }
+    setPullY(0);
+    isPulling.current  = false;
+    pullStartY.current = 0;
   }
 
   if (!chatUnlocked) {
@@ -583,8 +617,30 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       )}
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin px-4 py-6 transition-all duration-500" style={chatBg.current.style}>
-        <div className="max-w-2xl mx-auto space-y-4">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto scrollbar-thin px-4 pb-6 transition-all duration-500"
+        style={{ ...chatBg.current.style, overscrollBehaviorY: "contain" }}
+        onTouchStart={handlePullStart}
+        onTouchMove={handlePullMove}
+        onTouchEnd={handlePullEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        <div
+          className="flex justify-center items-end pointer-events-none overflow-hidden transition-all duration-200"
+          style={{ height: isRefreshing ? 60 : pullY > 0 ? pullY : 0 }}
+        >
+          <div
+            className="mb-2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
+            style={{ background: "linear-gradient(135deg,#FF7A1A,#FF4E00)", boxShadow: "0 4px 16px #FF7A1A55" }}
+          >
+            <RefreshCw
+              className={`w-5 h-5 text-white transition-transform duration-300 ${isRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: !isRefreshing ? `rotate(${Math.min((pullY / 56) * 180, 180)}deg)` : undefined }}
+            />
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto space-y-4 pt-2">
           {grouped.map((g) => (
             <div key={g.label} className="space-y-2">
               <div className="flex justify-center">
