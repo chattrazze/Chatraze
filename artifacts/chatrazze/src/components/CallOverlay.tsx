@@ -76,23 +76,18 @@ export default function CallOverlay({
     dragging.current = false;
   }, []);
 
+  // Audio & remote video are managed entirely by useWebRTC (routeAudio + attachRemoteStream).
+  // We only ensure the remote video element plays when remoteStream arrives (video calls).
   useEffect(() => {
     if (!remoteStream || remoteStream === prevRemoteStream.current) return;
     prevRemoteStream.current = remoteStream;
 
-    const audio = remoteAudioRef.current;
-    if (audio) {
-      audio.srcObject = remoteStream;
-      audio.volume = 1;
-      audio.muted = false;
-      audio.play().catch(() => {});
-    }
     const video = remoteVideoRef.current;
-    if (video) {
+    if (video && video.srcObject !== remoteStream) {
       video.srcObject = remoteStream;
       video.play().catch(() => {});
     }
-  }, [remoteStream, remoteAudioRef, remoteVideoRef]);
+  }, [remoteStream, remoteVideoRef]);
 
   useEffect(() => {
     const vid = localVideoRef.current;

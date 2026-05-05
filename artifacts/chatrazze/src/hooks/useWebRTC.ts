@@ -40,7 +40,7 @@ const INITIAL: WebRTCState = {
   remoteStream: null,
   muted: false,
   cameraOff: false,
-  speakerOn: false, // earpiece by default — like WhatsApp
+  speakerOn: true, // speaker on by default — avoids iOS autoplay block on earpiece
   elapsedSec: 0,
 };
 
@@ -99,6 +99,7 @@ export function useWebRTC(myUid: string, myName: string) {
   function resetState() {
     stopRinging();
     stopTimer();
+    stopNotifyRetransmit();
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     try { pcRef.current?.close(); } catch {}
     pcRef.current = null;
@@ -297,6 +298,16 @@ export function useWebRTC(myUid: string, myName: string) {
     });
   }
 
+  // Retransmit interval ref — resends notify until callee responds
+  const notifyIntervalRef = useRef<number | null>(null);
+
+  function stopNotifyRetransmit() {
+    if (notifyIntervalRef.current) {
+      window.clearInterval(notifyIntervalRef.current);
+      notifyIntervalRef.current = null;
+    }
+  }
+
   const initiateCall = useCallback(
     async (callId: string, peerUid: string, peerName: string, kind: CallKind) => {
       log("Initiating call to:", peerName, "kind:", kind);
@@ -321,8 +332,29 @@ export function useWebRTC(myUid: string, myName: string) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
+        const notifySignal: CallSignal = {
+          type: "notify", callId, from: myUid, fromName: myName,
+          to: peerUid, kind, sdp: offer,
+        };
+
         log("Sending offer to:", peerUid);
-        broadcastSignal({ type: "notify", callId, from: myUid, fromName: myName, to: peerUid, kind, sdp: offer });
+        broadcastSignal(notifySignal);
+
+        // Retransmit every 2.5s until answered/declined (max 60s)
+        stopNotifyRetransmit();
+        let retries = 0;
+        notifyIntervalRef.current = window.setInterval(() => {
+          if (stateRef.current.phase !== "calling") {
+            stopNotifyRetransmit();
+            return;
+          }
+          if (retries++ >= 24) { // ~60s timeout
+            stopNotifyRetransmit();
+            return;
+          }
+          log("Retransmitting notify #", retries);
+          broadcastSignal(notifySignal);
+        }, 2500);
       } catch (err) {
         log("Failed to initiate call:", err);
         resetState();

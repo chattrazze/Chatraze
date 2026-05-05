@@ -16,29 +16,52 @@ export interface CallSignal {
 
 export const ICE_CONFIG: RTCConfiguration = {
   iceServers: [
-    // Google STUN
+    // ── STUN servers (peer-to-peer when both have public IPs) ──
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
-    // Cloudflare STUN
     { urls: "stun:stun.cloudflare.com:3478" },
-    // Twilio STUN
     { urls: "stun:global.stun.twilio.com:3478" },
-    // Open Relay TURN — multiple transports for NAT traversal
+
+    // ── OpenRelay TURN (open community project, always free) ──
+    // UDP on port 80 — works through most firewalls
     {
-      urls: [
-        "turn:openrelay.metered.ca:80",
-        "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:443?transport=tcp",
-        "turns:openrelay.metered.ca:443",
-        "turns:openrelay.metered.ca:443?transport=tcp",
-      ],
+      urls: "turn:openrelay.metered.ca:80",
       username: "openrelayproject",
       credential: "openrelayproject",
     },
-    // Metered TURN (free tier backup)
+    // TCP on port 443 — works when UDP is blocked (mobile networks)
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    // TURNS (TLS) on 443 — works behind strict firewalls
+    {
+      urls: "turns:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+
+    // ── FreeTURN — free community TURN server ──
+    {
+      urls: [
+        "turn:freestun.net:3479",
+        "turn:freestun.net:3479?transport=tcp",
+      ],
+      username: "free",
+      credential: "free",
+    },
+    // TURNS/TLS variant
+    {
+      urls: "turns:freestun.net:5350",
+      username: "free",
+      credential: "free",
+    },
+
+    // ── Metered TURN — free tier ──
     {
       urls: [
         "turn:a.relay.metered.ca:80",
@@ -46,8 +69,8 @@ export const ICE_CONFIG: RTCConfiguration = {
         "turn:a.relay.metered.ca:443",
         "turns:a.relay.metered.ca:443",
       ],
-      username: "e49d2fa27b0dd37ddb6a0b15",
-      credential: "OD0HHqcCpfxkS0k3",
+      username: "f9a01fdb96d1ef6b2be7e42c",
+      credential: "x3JKJ2+WDCWdHQKe",
     },
   ],
   iceCandidatePoolSize: 10,
