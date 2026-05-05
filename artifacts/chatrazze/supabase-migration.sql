@@ -2,10 +2,10 @@
 -- Project: mnbcnfdnuqmqusbudwef
 
 CREATE TABLE IF NOT EXISTS chat_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_uid TEXT NOT NULL REFERENCES profiles(uid) ON DELETE CASCADE,
-  to_uid   TEXT NOT NULL REFERENCES profiles(uid) ON DELETE CASCADE,
-  status   TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | rejected
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_uid   UUID NOT NULL REFERENCES profiles(uid) ON DELETE CASCADE,
+  to_uid     UUID NOT NULL REFERENCES profiles(uid) ON DELETE CASCADE,
+  status     TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | rejected
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(from_uid, to_uid)
@@ -16,15 +16,15 @@ ALTER TABLE chat_requests ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "users can read their own requests"
   ON chat_requests FOR SELECT
-  USING (auth.uid()::text = from_uid OR auth.uid()::text = to_uid);
+  USING (auth.uid() = from_uid OR auth.uid() = to_uid);
 
 CREATE POLICY "users can insert their own requests"
   ON chat_requests FOR INSERT
-  WITH CHECK (auth.uid()::text = from_uid);
+  WITH CHECK (auth.uid() = from_uid);
 
 CREATE POLICY "recipient can update (accept/reject)"
   ON chat_requests FOR UPDATE
-  USING (auth.uid()::text = to_uid OR auth.uid()::text = from_uid);
+  USING (auth.uid() = to_uid OR auth.uid() = from_uid);
 
 -- Enable realtime for the table
 ALTER PUBLICATION supabase_realtime ADD TABLE chat_requests;
