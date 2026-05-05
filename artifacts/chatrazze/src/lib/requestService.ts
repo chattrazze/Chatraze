@@ -105,26 +105,43 @@ export function listenToPendingRequests(
   toUid: string,
   cb: (requests: ChatRequest[]) => void,
 ): () => void {
-  // Initial load
+  // Initial load — always safe
   getPendingRequests(toUid).then(cb).catch(() => cb([]));
 
-  const channel = supabase
-    .channel(`chat_requests:${toUid}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "chat_requests",
-        filter: `to_uid=eq.${toUid}`,
-      },
-      () => {
-        getPendingRequests(toUid).then(cb).catch(() => {});
-      },
-    )
-    .subscribe();
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+  try {
+    channel = supabase
+      .channel(`chat_requests:to:${toUid}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_requests",
+          filter: `to_uid=eq.${toUid}`,
+        },
+        () => {
+          getPendingRequests(toUid).then(cb).catch(() => {});
+        },
+      )
+      .subscribe((status, err) => {
+        if (err) {
+          // Realtime error — silently ignore, polling is not needed
+          console.warn("[requestService] realtime subscribe error:", err);
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[requestService] realtime status:", status);
+        }
+      });
+  } catch (err) {
+    console.warn("[requestService] failed to set up realtime:", err);
+  }
 
-  return () => { supabase.removeChannel(channel); };
+  return () => {
+    if (channel) {
+      supabase.removeChannel(channel).catch(() => {});
+    }
+  };
 }
 
 /* Check status of request between two users (in any direction) */

@@ -64,13 +64,18 @@ export default function Sidebar({
     return () => { unsub(); };
   }, [user]);
 
-  /* Listen for incoming chat requests */
+  /* Listen for incoming chat requests — guarded so errors never crash the sidebar */
   useEffect(() => {
     if (!user) return;
-    const unsub = listenToPendingRequests(user.uid, (reqs) => {
-      setPendingCount(reqs.length);
-    });
-    return () => unsub();
+    let unsub: (() => void) | null = null;
+    try {
+      unsub = listenToPendingRequests(user.uid, (reqs) => {
+        setPendingCount(reqs.length);
+      });
+    } catch {
+      // ignore — badge stays at 0
+    }
+    return () => { try { unsub?.(); } catch { /* ignore */ } };
   }, [user]);
 
   useEffect(() => {
