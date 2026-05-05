@@ -3,7 +3,7 @@ import {
   Mic, MicOff,
   PhoneOff, Phone,
   Video, VideoOff,
-  Volume2, VolumeX,
+  Volume2,
   EyeOff, Eye,
 } from "lucide-react";
 import type { WebRTCState } from "@/hooks/useWebRTC";
@@ -330,8 +330,8 @@ export default function CallOverlay({
               )}
               <RoundBtn
                 onClick={onToggleSpeaker}
-                icon={speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
-                label={t("speakerBtn")}
+                icon={speakerOn ? <Volume2 size={22} /> : <Phone size={18} style={{ transform: "rotate(-135deg)" }} />}
+                label={speakerOn ? t("speakerBtn") : t("earpieceBtn")}
                 bg={speakerOn ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.12)"}
                 size={56}
               />
