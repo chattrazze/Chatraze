@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { listenToUserChats, ChatDoc, createChat, createGroupChat } from "@/lib/chatService";
-import { AppUser, getUser, searchUsers } from "@/lib/userService";
+import { AppUser, getUsersBatch, getCachedUsers, setCachedUsers, searchUsers } from "@/lib/userService";
 import Avatar from "@/components/Avatar";
 import { useLang, LANG_LIST } from "@/hooks/useLang";
 import { useToast } from "@/components/Toast";
@@ -80,19 +80,34 @@ export default function Sidebar({
 
   useEffect(() => {
     if (!user) return;
-    const missing = chats
+    const allPeerUids = chats
       .filter((c) => c.type !== "group" && c.members.length <= 2)
       .map((c) => c.members.find((m) => m !== user.uid))
-      .filter((m): m is string => !!m && !peers[m]);
+      .filter((m): m is string => !!m);
+
+    if (allPeerUids.length === 0) return;
+
+    // 1. Show cached data instantly (no loading state)
+    const cached = getCachedUsers(allPeerUids);
+    if (Object.keys(cached).length > 0) {
+      setPeers((prev) => ({ ...cached, ...prev }));
+    }
+
+    // 2. Fetch only truly missing (not in state yet)
+    const missing = allPeerUids.filter((uid) => !peers[uid]);
     if (missing.length === 0) return;
-    Promise.all(missing.map((m) => getUser(m))).then((results) => {
+
+    // 3. ONE batch query for all missing peers
+    getUsersBatch(missing).then((results) => {
+      if (results.length === 0) return;
+      setCachedUsers(results);
       setPeers((prev) => {
         const next = { ...prev };
-        for (const u of results) if (u) next[u.uid] = u;
+        for (const u of results) next[u.uid] = u;
         return next;
       });
-    });
-  }, [chats, peers, user]);
+    }).catch(() => {/* ignore */});
+  }, [chats, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Immediately zero out unread for selected chat — fixes badge not clearing bug
   useEffect(() => {

@@ -86,6 +86,49 @@ export async function getUser(uid: string): Promise<AppUser | null> {
   return data ? rowToAppUser(data) : null;
 }
 
+/* ── Batch fetch multiple users in ONE query ── */
+export async function getUsersBatch(uids: string[]): Promise<AppUser[]> {
+  if (uids.length === 0) return [];
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .in("uid", uids);
+  return (data ?? []).map(rowToAppUser);
+}
+
+/* ── Lightweight localStorage peer cache ── */
+const CACHE_KEY = "chatrazze:peers_v2";
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+interface CacheEntry { user: AppUser; ts: number }
+
+function readCache(): Record<string, CacheEntry> {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY) ?? "{}") as Record<string, CacheEntry>;
+  } catch { return {}; }
+}
+function writeCache(cache: Record<string, CacheEntry>) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch { /* ignore */ }
+}
+
+export function getCachedUsers(uids: string[]): Record<string, AppUser> {
+  const cache = readCache();
+  const now = Date.now();
+  const result: Record<string, AppUser> = {};
+  for (const uid of uids) {
+    const entry = cache[uid];
+    if (entry && now - entry.ts < CACHE_TTL) result[uid] = entry.user;
+  }
+  return result;
+}
+
+export function setCachedUsers(users: AppUser[]) {
+  const cache = readCache();
+  const now = Date.now();
+  for (const u of users) cache[u.uid] = { user: u, ts: now };
+  writeCache(cache);
+}
+
 export async function searchUsers(qStr: string): Promise<AppUser[]> {
   const term = qStr.trim();
   if (!term) return [];
