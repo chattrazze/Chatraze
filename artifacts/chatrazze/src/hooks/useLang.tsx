@@ -1065,14 +1065,12 @@ const T = {
 
 export type TKey = keyof typeof T.en;
 
-function detectDeviceLang(): Lang {
+function getSavedLang(): Lang {
   try {
     const saved = localStorage.getItem("chatrazze:lang");
     if (saved && (LANG_LIST.map(l => l.code) as string[]).includes(saved)) return saved as Lang;
-    const device = (navigator.language ?? "en").split("-")[0].toLowerCase();
-    const match = LANG_LIST.find(l => l.code === device);
-    return match ? match.code : "en";
-  } catch { return "en"; }
+  } catch {}
+  return "en";
 }
 
 interface LangCtxType {
@@ -1087,7 +1085,7 @@ const LangCtx = createContext<LangCtxType>({
 });
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(detectDeviceLang);
+  const [lang, setLangState] = useState<Lang>(getSavedLang);
 
   const langMeta = LANG_LIST.find(l => l.code === lang)!;
   const dir = langMeta.dir;

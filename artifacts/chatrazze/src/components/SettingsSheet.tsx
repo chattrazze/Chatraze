@@ -3,6 +3,9 @@ import { ArrowLeft, Bell, Database, Eye, Globe, Info, Trash2, Volume2 } from "lu
 import { useToast } from "@/components/Toast";
 import { useTheme } from "@/hooks/useTheme";
 import { useLang, LANG_LIST } from "@/hooks/useLang";
+import { useAuth } from "@/hooks/useAuth";
+import { setUserLang } from "@/lib/userService";
+import type { Lang } from "@/hooks/useLang";
 
 export type SettingPanel = "privacy" | "chats" | "notifications" | "storage" | null;
 
@@ -103,8 +106,14 @@ function PrivacyPanel() {
 function ChatsPanel() {
   const { t, lang, setLang } = useLang();
   const { theme, toggle } = useTheme();
+  const { user } = useAuth();
   const [enterToSend, setEnterToSend] = useLocalToggle("chatrazze:chats:enterToSend", true);
   const [autoplay, setAutoplay]       = useLocalToggle("chatrazze:chats:autoplayMedia", false);
+
+  function handleSetLang(code: Lang) {
+    setLang(code);
+    if (user) setUserLang(user.uid, code).catch(() => {});
+  }
 
   return (
     <>
@@ -123,7 +132,7 @@ function ChatsPanel() {
           {LANG_LIST.map((l) => (
             <button
               key={l.code}
-              onClick={() => setLang(l.code)}
+              onClick={() => handleSetLang(l.code)}
               className={`py-2 px-3 rounded-xl text-sm font-medium transition flex items-center gap-2 ${
                 lang === l.code ? "bg-primary text-white" : "bg-white/5 hover:bg-white/10"
               }`}

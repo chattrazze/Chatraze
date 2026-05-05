@@ -7,6 +7,7 @@ export interface AppUser {
   displayName: string;
   photoURL: string | null;
   bio?: string | null;
+  lang?: string;
   createdAt?: string;
   lastSeen?: string;
   online?: boolean;
@@ -69,6 +70,7 @@ function rowToAppUser(row: Record<string, unknown>): AppUser {
     displayName: (row.display_name as string) ?? "User",
     photoURL: (row.photo_url as string) ?? null,
     bio: (row.bio as string) ?? null,
+    lang: (row.lang as string) ?? "en",
     online: (row.online as boolean) ?? false,
     lastSeen: (row.last_seen as string) ?? undefined,
     createdAt: (row.created_at as string) ?? undefined,
@@ -128,14 +130,19 @@ export async function setPresence(uid: string, online: boolean) {
 
 export async function updateUserProfile(
   uid: string,
-  updates: Partial<Pick<AppUser, "displayName" | "photoURL" | "phone" | "bio">>,
+  updates: Partial<Pick<AppUser, "displayName" | "photoURL" | "phone" | "bio" | "lang">>,
 ) {
   const mapped: Record<string, unknown> = {};
   if (updates.displayName !== undefined) mapped.display_name = updates.displayName;
   if (updates.photoURL !== undefined) mapped.photo_url = updates.photoURL;
   if (updates.phone !== undefined) mapped.phone = updates.phone;
   if (updates.bio !== undefined) mapped.bio = updates.bio;
+  if (updates.lang !== undefined) mapped.lang = updates.lang;
   await supabase.from("profiles").update(mapped).eq("uid", uid);
+}
+
+export async function setUserLang(uid: string, lang: string): Promise<void> {
+  await supabase.from("profiles").update({ lang }).eq("uid", uid);
 }
 
 async function compressImage(file: Blob, maxSize = 256): Promise<string> {

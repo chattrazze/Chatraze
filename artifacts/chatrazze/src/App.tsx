@@ -14,6 +14,7 @@ import CommunitiesScreen from "@/components/screens/CommunitiesScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import CallOverlay from "@/components/CallOverlay";
 import { AppUser, setPresence, getUser } from "@/lib/userService";
+import type { Lang } from "@/hooks/useLang";
 import { MessageCircle } from "lucide-react";
 import { useWebRTC, formatCallDuration } from "@/hooks/useWebRTC";
 import {
@@ -24,6 +25,27 @@ import {
 } from "@/lib/callService";
 import { createChat, sendMessage } from "@/lib/chatService";
 import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
+
+/* ── Syncs user's saved language from Supabase after login ── */
+function UserLangSync() {
+  const { user } = useAuth();
+  const { setLang, lang } = useLang();
+
+  useEffect(() => {
+    if (!user) return;
+    getUser(user.uid).then((u) => {
+      if (!u?.lang) return;
+      const VALID_LANGS = ["en","ar","fr","es","de","pt","it","tr"];
+      if (VALID_LANGS.includes(u.lang) && u.lang !== lang) {
+        setLang(u.lang as Lang);
+      }
+    }).catch(() => {});
+  // Only run on user change (login/logout), not on every lang change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
+  return null;
+}
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -207,6 +229,7 @@ function Shell() {
 
   return (
     <div className="h-screen w-screen flex flex-col md:flex-row overflow-hidden">
+      <UserLangSync />
       {/* Global call overlay */}
       {state.phase !== "idle" && (
         <CallOverlay

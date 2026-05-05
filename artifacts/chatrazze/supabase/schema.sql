@@ -10,6 +10,8 @@ create table if not exists public.profiles (
   phone text,
   display_name text not null default 'User',
   photo_url text,
+  bio text,
+  lang text not null default 'en',
   online boolean not null default false,
   last_seen timestamptz not null default now(),
   created_at timestamptz not null default now()

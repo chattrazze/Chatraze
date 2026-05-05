@@ -7,6 +7,13 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- Add lang column to profiles if it doesn't exist (default English)
+ALTER TABLE IF EXISTS public.profiles
+  ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en';
+
+ALTER TABLE IF EXISTS profiles
+  ADD COLUMN IF NOT EXISTS lang text NOT NULL DEFAULT 'en';
+
 -- ============================================================
 -- 1. CHATS TABLE
 -- id is TEXT so it accepts both proper UUIDs (new chats) and
