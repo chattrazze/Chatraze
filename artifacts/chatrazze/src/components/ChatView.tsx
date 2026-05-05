@@ -101,6 +101,8 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [searchOpen, setSearchOpen]   = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatchIdx, setSearchMatchIdx] = useState(0);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuRef  = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const msgRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -202,6 +204,17 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     const el = msgRefs.current.get(msg.id);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [searchMatchIdx, searchMatches, searchOpen]);
+
+  useEffect(() => {
+    if (!showHeaderMenu) return;
+    function onClickOutside(e: MouseEvent) {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setShowHeaderMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [showHeaderMenu]);
 
   const grouped = useMemo(() => groupByDay(messages, t), [messages, t]);
   const chatBg  = useChatBg(user?.uid ?? "");
@@ -418,24 +431,40 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             </button>
           </div>
         )}
-        <button
-          onClick={() => {
-            setSearchOpen((v) => { if (!v) setTimeout(() => searchInputRef.current?.focus(), 80); return !v; });
-            setSearchQuery("");
-            setSearchMatchIdx(0);
-          }}
-          title={t("searchInChat")}
-          className={`w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition ${searchOpen ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-        >
-          <Search className="w-4.5 h-4.5" />
-        </button>
-        <button
-          onClick={() => setShowBgPicker(true)}
-          title="Chat wallpaper"
-          className="w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition text-muted-foreground hover:text-primary"
-        >
-          <ImageIcon className="w-4.5 h-4.5" />
-        </button>
+        {/* ⋮ Three-dot menu */}
+        <div ref={headerMenuRef} className="relative">
+          <button
+            onClick={() => setShowHeaderMenu((v) => !v)}
+            className={`w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition ${showHeaderMenu ? "bg-foreground/8 text-primary" : "text-muted-foreground hover:text-primary"}`}
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+          {showHeaderMenu && (
+            <div className="absolute right-0 top-11 z-50 w-44 bg-card border border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              <button
+                onClick={() => {
+                  setShowHeaderMenu(false);
+                  setSearchQuery("");
+                  setSearchMatchIdx(0);
+                  setSearchOpen(true);
+                  setTimeout(() => searchInputRef.current?.focus(), 80);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/5 active:bg-foreground/10 transition text-start"
+              >
+                <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{t("searchInChat")}</span>
+              </button>
+              <div className="h-px bg-border" />
+              <button
+                onClick={() => { setShowHeaderMenu(false); setShowBgPicker(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/5 active:bg-foreground/10 transition text-start"
+              >
+                <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{t("chatBg")}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Search bar */}
