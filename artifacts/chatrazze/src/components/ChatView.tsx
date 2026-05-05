@@ -78,6 +78,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [uploadHint, setUploadHint] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [peerOnline, setPeerOnline] = useState<boolean>(!!peer.online);
   const [peerLastSeen, setPeerLastSeen] = useState<Date | null>(null);
@@ -298,9 +299,29 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
     e.target.value = "";
     if (!f) return;
     setShowAttachMenu(false);
-    setUploadHint(`${t("uploading")} ${kind}...`);
+    setUploadProgress(0);
+    setUploadHint(null);
+
+    // Optimistic uploading bubble
+    const tempId = `uploading_${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        chatId,
+        senderId: user!.uid,
+        type: kind,
+        text: `⏳ ${t("uploading")} ${kind}...`,
+        createdAt: new Date().toISOString(),
+        readBy: [user!.uid],
+        reactions: {},
+      } as MessageDoc,
+    ]);
+
     try {
-      const uploaded = await uploadMedia(f, user!.uid, chatId);
+      const uploaded = await uploadMedia(f, user!.uid, chatId, (pct) => {
+        setUploadProgress(pct);
+      });
       const realId = await sendMessage(chatId, user!.uid, {
         type: kind,
         mediaUrl: uploaded.url,
@@ -308,12 +329,13 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
         mediaMime: uploaded.mime,
         mediaSize: uploaded.size,
       });
-      setUploadHint(null);
-      // Immediately add to messages without waiting for realtime
+      setUploadProgress(null);
+      // Replace optimistic bubble with real message
       setMessages((prev) => {
-        if (prev.find((m) => m.id === realId)) return prev;
+        const filtered = prev.filter((m) => m.id !== tempId);
+        if (filtered.find((m) => m.id === realId)) return filtered;
         return [
-          ...prev,
+          ...filtered,
           {
             id: realId,
             chatId,
@@ -330,6 +352,8 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
         ];
       });
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setUploadProgress(null);
       setUploadHint(`${t("uploadFailed")}: ${(err as { message?: string }).message ?? "unknown"}`);
       setTimeout(() => setUploadHint(null), 4500);
     }
@@ -415,7 +439,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   }
 
   return (
-    <section className="flex-1 flex flex-col h-full">
+    <section className="relative flex-1 flex flex-col h-full">
       {/* Header */}
       <header className="flex items-center gap-3 px-4 py-3 glass border-b border-border">
         <button onClick={onBack} className="md:hidden p-1.5 rounded-lg hover:bg-foreground/5">
@@ -465,6 +489,19 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             </button>
           </div>
         )}
+        {/* Search button — direct in header */}
+        <button
+          onClick={() => {
+            setSearchQuery("");
+            setSearchMatchIdx(0);
+            setSearchOpen((v) => !v);
+            setTimeout(() => searchInputRef.current?.focus(), 100);
+          }}
+          className={`w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition ${searchOpen ? "bg-foreground/8 text-primary" : "text-muted-foreground hover:text-primary"}`}
+        >
+          <Search className="w-4.5 h-4.5" />
+        </button>
+
         {/* ⋮ Three-dot menu */}
         <div ref={headerMenuRef} className="relative">
           <button
@@ -585,7 +622,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                       </div>
                     )}
                     <span className="absolute bottom-0 inset-x-0 px-2 py-1.5 text-[10px] font-medium text-white/80 bg-black/40 backdrop-blur-sm truncate text-center">
-                      {bg.labelEn}
+                      {chatBg.current.id === bg.id ? (chatBg.current.labelAr && chatBg.current.labelEn ? bg.labelEn : bg.labelEn) : bg.labelEn}
                     </span>
                   </button>
                 );
@@ -675,6 +712,22 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
           )}
         </div>
       </div>
+
+      {/* Upload progress bar */}
+      {uploadProgress !== null && (
+        <div className="px-4 py-2 border-t border-border bg-card">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs text-muted-foreground flex-1">{t("uploading")}...</span>
+            <span className="text-xs font-mono font-semibold" style={{ color: "#FF7A1A" }}>{uploadProgress}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-border overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%`, background: "linear-gradient(90deg,#FF7A1A,#FF4E00)" }}
+            />
+          </div>
+        </div>
+      )}
 
       {uploadHint && (
         <div className="px-4 py-1.5 text-xs text-center text-secondary bg-secondary/10 border-t border-secondary/20">
@@ -787,11 +840,9 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             t={t}
             onActiveChange={setIsRecording}
             onRecorded={async (blob) => {
-              setUploadHint(`${t("uploading")} ${t("voiceMessage")}...`);
+              setUploadProgress(0);
               try {
-                const ext = blob.type.includes("mp4") || blob.type.includes("aac") ? "mp4"
-                  : blob.type.includes("ogg") ? "ogg" : "webm";
-                const uploaded = await uploadMedia(blob, user.uid, chatId);
+                const uploaded = await uploadMedia(blob, user.uid, chatId, (pct) => setUploadProgress(pct));
                 const realId = await sendMessage(chatId, user.uid, {
                   type: "audio",
                   mediaUrl: uploaded.url,
@@ -799,7 +850,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   mediaMime: uploaded.mime,
                   mediaSize: uploaded.size,
                 });
-                setUploadHint(null);
+                setUploadProgress(null);
                 setMessages((prev) => {
                   if (prev.find((m) => m.id === realId)) return prev;
                   return [
@@ -815,6 +866,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   ];
                 });
               } catch (err) {
+                setUploadProgress(null);
                 setUploadHint(`${t("uploadFailed")}: ${(err as { message?: string }).message ?? "unknown"}`);
                 setTimeout(() => setUploadHint(null), 4500);
               }

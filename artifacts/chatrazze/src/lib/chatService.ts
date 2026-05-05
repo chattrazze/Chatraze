@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
 export type MessageType = "text" | "image" | "video" | "audio" | "file" | "call_ended" | "call_missed";
 
@@ -417,6 +417,7 @@ export async function uploadMedia(
   source: File | Blob | string,
   userId: string,
   chatId: string,
+  onProgress?: (pct: number) => void,
 ): Promise<{ url: string; type: MessageType; name: string; mime: string; size: number }> {
   if (typeof source === "string") {
     return {
@@ -440,11 +441,30 @@ export async function uploadMedia(
     mime.startsWith("audio/") ? "audio" :
     "file";
 
-  const { error } = await supabase.storage
-    .from(MEDIA_BUCKET)
-    .upload(storagePath, source, { contentType: mime, upsert: false });
-
-  if (error) throw new Error(error.message);
+  // Use XHR for real upload progress
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/${MEDIA_BUCKET}/${storagePath}`;
+    xhr.open("POST", uploadUrl, true);
+    xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.setRequestHeader("Content-Type", mime);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.send(source);
+  });
 
   const { data: publicData } = supabase.storage
     .from(MEDIA_BUCKET)
