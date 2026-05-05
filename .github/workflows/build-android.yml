@@ -1,0 +1,89 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build type"
+        required: true
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: .
+
+      - name: Build web app for mobile
+        run: pnpm run build:mobile
+        working-directory: artifacts/chatrazze
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Initialize Capacitor Android
+        run: |
+          cd artifacts/chatrazze
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Build Debug APK
+        if: ${{ inputs.build_type == 'debug' }}
+        run: |
+          cd artifacts/chatrazze/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+
+      - name: Build Release APK (unsigned)
+        if: ${{ inputs.build_type == 'release' }}
+        run: |
+          cd artifacts/chatrazze/android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+
+      - name: Upload Debug APK
+        if: ${{ inputs.build_type == 'debug' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatrazze-debug.apk
+          path: artifacts/chatrazze/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+      - name: Upload Release APK
+        if: ${{ inputs.build_type == 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatrazze-release.apk
+          path: artifacts/chatrazze/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 7
