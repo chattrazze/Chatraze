@@ -15,14 +15,15 @@ import DiscoverSetupScreen from "@/components/screens/DiscoverSetupScreen";
 import type { AppUser } from "@/lib/userService";
 import {
   ChevronLeft,
-  ChevronRight,
   Flame,
+  GraduationCap,
   Heart,
   Info,
   MapPin,
   MessageCircle,
   Pencil,
   RefreshCw,
+  Ruler,
   Sparkles,
   X,
 } from "lucide-react";
@@ -31,7 +32,6 @@ interface Props {
   onGoToChat: (chatId: string, peer: AppUser) => void;
 }
 
-/* ─── Tag pill ────────────────────────────────────────────────────────────── */
 function Tag({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/15 backdrop-blur-sm text-white border border-white/20">
@@ -40,14 +40,7 @@ function Tag({ label }: { label: string }) {
   );
 }
 
-/* ─── Photo dots ──────────────────────────────────────────────────────────── */
-function PhotoDots({
-  total,
-  current,
-}: {
-  total: number;
-  current: number;
-}) {
+function PhotoDots({ total, current }: { total: number; current: number }) {
   if (total <= 1) return null;
   return (
     <div className="flex items-center gap-1 justify-center">
@@ -63,7 +56,6 @@ function PhotoDots({
   );
 }
 
-/* ─── Action button ───────────────────────────────────────────────────────── */
 function ActionBtn({
   icon,
   onClick,
@@ -78,11 +70,7 @@ function ActionBtn({
   disabled?: boolean;
 }) {
   const dim =
-    size === "lg"
-      ? "w-16 h-16"
-      : size === "sm"
-      ? "w-11 h-11"
-      : "w-14 h-14";
+    size === "lg" ? "w-16 h-16" : size === "sm" ? "w-11 h-11" : "w-14 h-14";
   return (
     <button
       onClick={onClick}
@@ -94,7 +82,17 @@ function ActionBtn({
   );
 }
 
-/* ─── Match Modal ─────────────────────────────────────────────────────────── */
+/* ── Info pill ────────────────────────────────────────────────────────────── */
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-4 py-3 rounded-2xl bg-foreground/5 border border-border">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+/* ── Match Modal ─────────────────────────────────────────────────────────── */
 function MatchModal({
   me,
   matched,
@@ -109,8 +107,10 @@ function MatchModal({
   t: (k: string) => string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
-      style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.92) 0%, rgba(255,78,0,0.95) 100%)" }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+      style={{ background: "linear-gradient(135deg, rgba(255,122,26,0.92) 0%, rgba(255,78,0,0.95) 100%)" }}
+    >
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {Array.from({ length: 20 }).map((_, i) => (
           <div
@@ -169,19 +169,26 @@ function MatchModal({
   );
 }
 
-/* ─── Profile Detail Sheet ────────────────────────────────────────────────── */
+/* ── Profile Detail Sheet ──────────────────────────────────────────────────
+   Used for both swipe card detail view AND match profile view.
+   When onChat is provided → show chat button at the bottom.
+────────────────────────────────────────────────────────────────────────── */
 function ProfileSheet({
   profile,
   onClose,
+  onChat,
   t,
 }: {
   profile: DiscoverProfile;
   onClose: () => void;
+  onChat?: () => void;
   t: (k: string) => string;
 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-y-auto">
+      {/* Hero photo */}
       <div className="relative h-[60vh] shrink-0">
         {profile.photos.length > 0 ? (
           <img
@@ -202,39 +209,95 @@ function ProfileSheet({
           <ChevronLeft className="w-6 h-6 text-white" />
         </button>
         {profile.photos.length > 1 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2">
-            <PhotoDots total={profile.photos.length} current={photoIdx} />
-          </div>
+          <>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2">
+              <PhotoDots total={profile.photos.length} current={photoIdx} />
+            </div>
+            <div className="absolute inset-0 flex">
+              <div className="flex-1" onClick={() => setPhotoIdx((i) => Math.max(0, i - 1))} />
+              <div className="flex-1" onClick={() => setPhotoIdx((i) => Math.min(profile.photos.length - 1, i + 1))} />
+            </div>
+          </>
         )}
+        {/* Thumbnail strip */}
         {profile.photos.length > 1 && (
-          <div className="absolute inset-0 flex">
-            <div className="flex-1" onClick={() => setPhotoIdx((i) => Math.max(0, i - 1))} />
-            <div className="flex-1" onClick={() => setPhotoIdx((i) => Math.min(profile.photos.length - 1, i + 1))} />
+          <div className="absolute bottom-16 left-4 right-4 flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {profile.photos.map((url, i) => (
+              <button
+                key={url}
+                onClick={() => setPhotoIdx(i)}
+                className={`shrink-0 w-12 h-16 rounded-xl overflow-hidden border-2 transition ${i === photoIdx ? "border-white" : "border-white/30"}`}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
           </div>
         )}
         <div className="absolute bottom-4 left-4 right-4">
           <h2 className="text-white text-3xl font-black">
-            {profile.displayName}, {profile.age}
+            {profile.displayName}{profile.age ? `, ${profile.age}` : ""}
           </h2>
-          <div className="flex items-center gap-1 text-white/90 text-sm mt-1">
-            <MapPin className="w-3.5 h-3.5" />
-            {profile.city}
+          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1">
+            {profile.city && (
+              <div className="flex items-center gap-1 text-white/90 text-sm">
+                <MapPin className="w-3.5 h-3.5" />
+                {profile.city}{profile.nationality ? `, ${profile.nationality}` : ""}
+              </div>
+            )}
+            {profile.height && (
+              <div className="flex items-center gap-1 text-white/80 text-sm">
+                <Ruler className="w-3.5 h-3.5" />
+                {profile.height} cm
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Body */}
       <div className="px-5 py-6 space-y-5">
+        {/* Looking for badge */}
         {profile.lookingFor && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary/10 border border-primary/20 w-fit">
             <Heart className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">{t(profile.lookingFor)}</span>
+            <span className="text-sm font-medium text-primary">{t(profile.lookingFor as Parameters<typeof t>[0])}</span>
           </div>
         )}
+
+        {/* Bio */}
         {profile.bio && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("aboutMe")}</h3>
             <p className="text-sm leading-relaxed">{profile.bio}</p>
           </div>
         )}
+
+        {/* Occupation */}
+        {profile.occupation && (
+          <div className="flex items-center gap-2">
+            <GraduationCap className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-sm">{profile.occupation}</span>
+          </div>
+        )}
+
+        {/* Info grid */}
+        {(profile.education || profile.religion || profile.zodiac || profile.children ||
+          profile.fitness || profile.smoking || profile.drinking) && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">{t("lifestyle")}</h3>
+            <div className="grid grid-cols-2 gap-2.5">
+              {profile.education && <InfoPill label={t("educationLevel")} value={t(profile.education as Parameters<typeof t>[0])} />}
+              {profile.religion && <InfoPill label={t("yourReligion")} value={t(profile.religion as Parameters<typeof t>[0])} />}
+              {profile.zodiac && <InfoPill label={t("yourZodiac")} value={t(profile.zodiac as Parameters<typeof t>[0])} />}
+              {profile.children && <InfoPill label={t("childrenPref")} value={t(profile.children as Parameters<typeof t>[0])} />}
+              {profile.fitness && <InfoPill label={t("fitnessLevel")} value={t(profile.fitness as Parameters<typeof t>[0])} />}
+              {profile.smoking && <InfoPill label={t("smokingHabit")} value={t(profile.smoking as Parameters<typeof t>[0])} />}
+              {profile.drinking && <InfoPill label={t("drinkingHabit")} value={t(profile.drinking as Parameters<typeof t>[0])} />}
+            </div>
+          </div>
+        )}
+
+        {/* Interests */}
         {profile.interests.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("interests")}</h3>
@@ -247,33 +310,46 @@ function ProfileSheet({
             </div>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          {profile.fitness && (
-            <div className="px-4 py-3 rounded-2xl bg-foreground/5 border border-border">
-              <p className="text-xs text-muted-foreground">{t("fitnessLevel")}</p>
-              <p className="text-sm font-semibold mt-0.5">{t(profile.fitness)}</p>
+
+        {/* Languages */}
+        {profile.languages && profile.languages.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">{t("spokenLanguages")}</h3>
+            <div className="flex flex-wrap gap-2">
+              {profile.languages.map((l) => (
+                <span key={l} className="px-3 py-1.5 rounded-full bg-foreground/8 text-sm font-medium border border-border">
+                  {l}
+                </span>
+              ))}
             </div>
-          )}
-          {profile.smoking && (
-            <div className="px-4 py-3 rounded-2xl bg-foreground/5 border border-border">
-              <p className="text-xs text-muted-foreground">{t("smokingHabit")}</p>
-              <p className="text-sm font-semibold mt-0.5">{t(profile.smoking)}</p>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Chat button for match profile view */}
+        {onChat && (
+          <div className="pt-2 pb-4">
+            <button
+              onClick={onChat}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#FF7A1A] to-[#FF4E00] text-white font-bold text-base shadow-lg shadow-primary/30 hover:opacity-95 active:scale-[0.99] transition flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="w-5 h-5" />
+              {t("goToChat")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* ─── Matches list ────────────────────────────────────────────────────────── */
+/* ── Matches list ─────────────────────────────────────────────────────────── */
 function MatchesList({
   matches,
-  onChat,
+  onViewProfile,
   t,
 }: {
   matches: DiscoverMatch[];
-  onChat: (m: DiscoverMatch) => void;
+  onViewProfile: (m: DiscoverMatch) => void;
   t: (k: string) => string;
 }) {
   if (matches.length === 0) {
@@ -292,7 +368,7 @@ function MatchesList({
       {matches.map((m) => (
         <button
           key={m.id}
-          onClick={() => onChat(m)}
+          onClick={() => onViewProfile(m)}
           className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-foreground/5 transition border-b border-border"
         >
           <div className="relative shrink-0">
@@ -309,16 +385,24 @@ function MatchesList({
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="font-semibold text-[15px] truncate">{m.displayName}</p>
-            <p className="text-xs text-muted-foreground">{t("tapToChat")}</p>
+            {m.profile?.city && (
+              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                <MapPin className="w-3 h-3 inline" />
+                {m.profile.city}
+              </p>
+            )}
           </div>
-          <MessageCircle className="w-5 h-5 text-primary shrink-0" />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted-foreground">{t("viewMatchProfile")}</span>
+            <Info className="w-4 h-4 text-primary" />
+          </div>
         </button>
       ))}
     </div>
   );
 }
 
-/* ─── Main card ───────────────────────────────────────────────────────────── */
+/* ── Main card ────────────────────────────────────────────────────────────── */
 function SwipeCard({
   profile,
   photoIdx,
@@ -332,7 +416,6 @@ function SwipeCard({
 }) {
   return (
     <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl select-none">
-      {/* Photo */}
       {profile.photos[photoIdx] ? (
         <img
           src={profile.photos[photoIdx]}
@@ -345,34 +428,31 @@ function SwipeCard({
           <Avatar name={profile.displayName} size={100} />
         </div>
       )}
-
-      {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-
-      {/* Photo dots */}
       <div className="absolute top-4 left-0 right-0 px-4">
         <PhotoDots total={profile.photos.length} current={photoIdx} />
       </div>
-
-      {/* Photo tap zones */}
       <div className="absolute inset-0 flex">
         <div className="w-1/3 h-full" onClick={() => onPhotoNav("left")} />
         <div className="flex-1 h-full" onClick={() => onPhotoNav("right")} />
       </div>
-
-      {/* Info overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
         <div className="flex items-end justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h2 className="text-white text-2xl font-black leading-tight truncate">
-              {profile.displayName}, {profile.age}
+              {profile.displayName}{profile.age ? `, ${profile.age}` : ""}
             </h2>
-            {profile.city && (
-              <div className="flex items-center gap-1 text-white/80 text-sm mt-0.5">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{profile.city}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-3 mt-0.5">
+              {profile.city && (
+                <div className="flex items-center gap-1 text-white/80 text-sm">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{profile.city}</span>
+                </div>
+              )}
+              {profile.height && (
+                <span className="text-white/70 text-sm">{profile.height} cm</span>
+              )}
+            </div>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onShowProfile(); }}
@@ -381,17 +461,16 @@ function SwipeCard({
             <Info className="w-4 h-4 text-white" />
           </button>
         </div>
-
-        {/* Tags row */}
         <div className="flex flex-wrap gap-1.5">
-          {profile.lookingFor && <Tag label={profile.lookingFor === "friendship" ? "Friendship"
-            : profile.lookingFor === "dating" ? "Dating"
-            : profile.lookingFor === "relationship" ? "Relationship"
-            : "Casual"} />}
+          {profile.lookingFor && (
+            <Tag label={profile.lookingFor === "friendship" ? "Friendship"
+              : profile.lookingFor === "dating" ? "Dating"
+              : profile.lookingFor === "relationship" ? "Relationship"
+              : "Casual"} />
+          )}
+          {profile.zodiac && <Tag label={profile.zodiac.charAt(0).toUpperCase() + profile.zodiac.slice(1)} />}
           {profile.interests.slice(0, 2).map((i) => <Tag key={i} label={i} />)}
         </div>
-
-        {/* Bio snippet */}
         {profile.bio && (
           <p className="text-white/75 text-xs leading-relaxed line-clamp-2">{profile.bio}</p>
         )}
@@ -400,16 +479,7 @@ function SwipeCard({
   );
 }
 
-/* ─── Empty feed ──────────────────────────────────────────────────────────── */
-function EmptyFeed({
-  onRefresh,
-  loading,
-  t,
-}: {
-  onRefresh: () => void;
-  loading: boolean;
-  t: (k: string) => string;
-}) {
+function EmptyFeed({ onRefresh, loading, t }: { onRefresh: () => void; loading: boolean; t: (k: string) => string }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
       <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#FF7A1A]/20 to-[#FF4E00]/10 flex items-center justify-center mb-5 border border-primary/20">
@@ -429,7 +499,7 @@ function EmptyFeed({
   );
 }
 
-/* ─── MAIN ────────────────────────────────────────────────────────────────── */
+/* ── MAIN ──────────────────────────────────────────────────────────────────── */
 export default function DiscoverScreen({ onGoToChat }: Props) {
   const { user } = useAuth();
   const { t } = useLang();
@@ -445,6 +515,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState<"like" | "skip" | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [viewingMatch, setViewingMatch] = useState<DiscoverMatch | null>(null);
   const swipeLock = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -477,9 +548,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
   function handlePhotoNav(dir: "left" | "right") {
     if (!current) return;
     setPhotoIdx((i) =>
-      dir === "left"
-        ? Math.max(0, i - 1)
-        : Math.min(current.photos.length - 1, i + 1)
+      dir === "left" ? Math.max(0, i - 1) : Math.min(current.photos.length - 1, i + 1)
     );
   }
 
@@ -487,9 +556,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
     if (!user || !current || swipeLock.current) return;
     swipeLock.current = true;
     setSwiping(direction);
-
     await new Promise((r) => setTimeout(r, 320));
-
     try {
       const result = await doSwipe(user.uid, current.userId, direction);
       if (result.matched && result.matchedProfile) {
@@ -502,6 +569,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
             photos: result.matchedProfile!.photos,
             chatId: result.chatId!,
             matchedAt: new Date().toISOString(),
+            profile: result.matchedProfile!,
           },
           ...prev,
         ]);
@@ -509,7 +577,6 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
     } catch {
       /* ignore */
     }
-
     setCurrentIdx((i) => i + 1);
     setPhotoIdx(0);
     setSwiping(null);
@@ -527,12 +594,14 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
     onGoToChat(chatId, peer);
   }
 
-  // If setup needed
+  // Setup not complete
   if (!loading && !myProfile && view !== "setup") {
     return (
       <DiscoverSetupScreen
         existing={null}
-        onDone={(p) => { setMyProfile(p); setView("swipe"); loadData(); }}
+        onDone={(p) => {
+          if (p) { setMyProfile(p); setView("swipe"); loadData(); }
+        }}
       />
     );
   }
@@ -541,7 +610,12 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
     return (
       <DiscoverSetupScreen
         existing={myProfile}
-        onDone={(p) => { setMyProfile(p); setView("swipe"); loadData(); }}
+        onDone={(p) => {
+          if (p) { setMyProfile(p); }
+          else { setMyProfile(null); }
+          setView("swipe");
+          loadData();
+        }}
       />
     );
   }
@@ -557,7 +631,6 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
           <h1 className="text-xl font-black tracking-tight">{t("discover")}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* Matches count */}
           <button
             onClick={() => setView(view === "matches" ? "swipe" : "matches")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition border ${
@@ -590,16 +663,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
       {view === "matches" && (
         <MatchesList
           matches={matches}
-          onChat={(m) => {
-            const peer: AppUser = {
-              uid: m.userId,
-              displayName: m.displayName,
-              email: null,
-              phone: null,
-              photoURL: m.photos[0] ?? null,
-            };
-            onGoToChat(m.chatId, peer);
-          }}
+          onViewProfile={(m) => setViewingMatch(m)}
           t={t}
         />
       )}
@@ -615,24 +679,19 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
             <EmptyFeed onRefresh={loadData} loading={loading} t={t} />
           ) : (
             <>
-              {/* Card area */}
               <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 min-h-0">
-                {/* Next card (peeking behind) */}
                 {feed[currentIdx + 1] && (
-                  <div className="absolute mx-4 rounded-3xl overflow-hidden shadow-lg opacity-70 scale-95"
-                    style={{ width: "calc(100% - 32px)", height: "clamp(320px, 62vh, 520px)", zIndex: 1 }}>
+                  <div
+                    className="absolute mx-4 rounded-3xl overflow-hidden shadow-lg opacity-70 scale-95"
+                    style={{ width: "calc(100% - 32px)", height: "clamp(320px, 62vh, 520px)", zIndex: 1 }}
+                  >
                     {feed[currentIdx + 1].photos[0] && (
-                      <img
-                        src={feed[currentIdx + 1].photos[0]}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={feed[currentIdx + 1].photos[0]} alt="" className="w-full h-full object-cover" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                   </div>
                 )}
 
-                {/* Main card */}
                 <div
                   className="relative w-full transition-all duration-300 ease-out"
                   style={{
@@ -652,8 +711,6 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                     onPhotoNav={handlePhotoNav}
                     onShowProfile={() => setShowDetail(true)}
                   />
-
-                  {/* Swipe hint overlays */}
                   {swiping === "like" && (
                     <div className="absolute top-6 left-5 border-[3px] border-green-400 px-4 py-1.5 rounded-xl rotate-[-15deg]">
                       <span className="text-green-400 text-xl font-black tracking-widest">LIKE</span>
@@ -666,7 +723,6 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                   )}
                 </div>
 
-                {/* Remaining count */}
                 {feed.length - currentIdx > 1 && (
                   <p className="text-xs text-muted-foreground mt-2">
                     {feed.length - currentIdx - 1} {t("moreProfiles")}
@@ -674,7 +730,6 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                 )}
               </div>
 
-              {/* Action buttons */}
               <div className="shrink-0 px-6 pb-8 pt-2">
                 <div className="flex items-center justify-center gap-5">
                   <ActionBtn
@@ -707,11 +762,41 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
         </>
       )}
 
-      {/* Profile detail sheet */}
+      {/* Swipe card detail sheet */}
       {showDetail && current && (
         <ProfileSheet
           profile={current}
           onClose={() => setShowDetail(false)}
+          t={t}
+        />
+      )}
+
+      {/* Match profile sheet (from matches list) */}
+      {viewingMatch && (
+        <ProfileSheet
+          profile={viewingMatch.profile ?? {
+            userId: viewingMatch.userId,
+            displayName: viewingMatch.displayName,
+            age: 0,
+            gender: "",
+            city: "",
+            bio: "",
+            lookingFor: "",
+            fitness: "",
+            smoking: "",
+            interests: [],
+            photos: viewingMatch.photos,
+            isActive: true,
+          }}
+          onClose={() => setViewingMatch(null)}
+          onChat={() => {
+            handleGoToChat(
+              viewingMatch.chatId,
+              viewingMatch.displayName,
+              viewingMatch.photos[0]
+            );
+            setViewingMatch(null);
+          }}
           t={t}
         />
       )}

@@ -7,11 +7,20 @@ export interface DiscoverProfile {
   age: number;
   gender: string;
   city: string;
+  nationality?: string;
+  height?: number;
   bio: string;
   lookingFor: string;
   fitness: string;
   smoking: string;
+  drinking?: string;
+  education?: string;
+  occupation?: string;
+  religion?: string;
+  children?: string;
+  zodiac?: string;
   interests: string[];
+  languages?: string[];
   photos: string[];
   isActive: boolean;
   createdAt?: string;
@@ -25,6 +34,7 @@ export interface DiscoverMatch {
   photos: string[];
   chatId: string;
   matchedAt: string;
+  profile?: DiscoverProfile;
 }
 
 function rowToProfile(row: Record<string, unknown>): DiscoverProfile {
@@ -34,11 +44,20 @@ function rowToProfile(row: Record<string, unknown>): DiscoverProfile {
     age: (row.age as number) ?? 0,
     gender: (row.gender as string) ?? "",
     city: (row.city as string) ?? "",
+    nationality: (row.nationality as string) ?? undefined,
+    height: (row.height as number) ?? undefined,
     bio: (row.bio as string) ?? "",
     lookingFor: (row.looking_for as string) ?? "friendship",
-    fitness: (row.fitness as string) ?? "light",
-    smoking: (row.smoking as string) ?? "never",
+    fitness: (row.fitness as string) ?? "",
+    smoking: (row.smoking as string) ?? "",
+    drinking: (row.drinking as string) ?? undefined,
+    education: (row.education as string) ?? undefined,
+    occupation: (row.occupation as string) ?? undefined,
+    religion: (row.religion as string) ?? undefined,
+    children: (row.children as string) ?? undefined,
+    zodiac: (row.zodiac as string) ?? undefined,
     interests: (row.interests as string[]) ?? [],
+    languages: (row.languages as string[]) ?? [],
     photos: (row.photos as string[]) ?? [],
     isActive: (row.is_active as boolean) ?? false,
     createdAt: (row.created_at as string) ?? undefined,
@@ -73,17 +92,50 @@ export async function upsertDiscoverProfile(
       age: profile.age ?? 0,
       gender: profile.gender ?? "",
       city: profile.city ?? "",
+      nationality: profile.nationality ?? null,
+      height: profile.height ?? null,
       bio: profile.bio ?? "",
       looking_for: profile.lookingFor ?? "friendship",
-      fitness: profile.fitness ?? "light",
-      smoking: profile.smoking ?? "never",
+      fitness: profile.fitness ?? "",
+      smoking: profile.smoking ?? "",
+      drinking: profile.drinking ?? null,
+      education: profile.education ?? null,
+      occupation: profile.occupation ?? null,
+      religion: profile.religion ?? null,
+      children: profile.children ?? null,
+      zodiac: profile.zodiac ?? null,
       interests: profile.interests ?? [],
+      languages: profile.languages ?? [],
       photos,
       is_active: isActive,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }
   );
+  if (error) throw error;
+}
+
+export async function pauseDiscoverProfile(uid: string): Promise<void> {
+  const { error } = await supabase
+    .from("discover_profiles")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("user_id", uid);
+  if (error) throw error;
+}
+
+export async function resumeDiscoverProfile(uid: string): Promise<void> {
+  const { error } = await supabase
+    .from("discover_profiles")
+    .update({ is_active: true, updated_at: new Date().toISOString() })
+    .eq("user_id", uid);
+  if (error) throw error;
+}
+
+export async function deleteDiscoverProfile(uid: string): Promise<void> {
+  const { error } = await supabase
+    .from("discover_profiles")
+    .delete()
+    .eq("user_id", uid);
   if (error) throw error;
 }
 
@@ -217,6 +269,7 @@ export async function getMatches(uid: string): Promise<DiscoverMatch[]> {
       photos: profile?.photos ?? [],
       chatId: m.chat_id,
       matchedAt: m.created_at,
+      profile: profile ?? undefined,
     };
   });
 }

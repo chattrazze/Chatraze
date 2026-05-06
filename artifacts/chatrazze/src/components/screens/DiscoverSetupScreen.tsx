@@ -6,35 +6,52 @@ import {
   upsertDiscoverProfile,
   uploadDiscoverPhoto,
   deleteDiscoverPhoto,
+  pauseDiscoverProfile,
+  resumeDiscoverProfile,
+  deleteDiscoverProfile,
   type DiscoverProfile,
 } from "@/lib/discoverService";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Camera,
   Check,
   Flame,
   Loader2,
+  Pause,
+  Play,
   Trash2,
   X,
 } from "lucide-react";
 
 interface Props {
   existing: DiscoverProfile | null;
-  onDone: (profile: DiscoverProfile) => void;
+  onDone: (profile: DiscoverProfile | null) => void;
 }
 
-const STEPS = 4;
+const STEPS = 5;
 
 const GENDER_OPTIONS = ["male", "female", "nonBinary", "other"] as const;
 const LOOKING_FOR_OPTIONS = ["friendship", "dating", "relationship", "casual"] as const;
 const FITNESS_OPTIONS = ["sedentary", "lightlyActive", "active", "veryActive"] as const;
 const SMOKING_OPTIONS = ["neverSmoking", "sometimesSmoking", "regularlySmoking", "tryingToQuit"] as const;
+const DRINKING_OPTIONS = ["neverDrinking", "socialDrinking", "regularDrinking"] as const;
+const EDUCATION_OPTIONS = ["noEducation", "highSchool", "vocational", "bachelor", "master", "phd"] as const;
+const RELIGION_OPTIONS = ["noReligion", "christian", "muslim", "jewish", "hindu", "buddhist", "spiritual", "otherReligion"] as const;
+const CHILDREN_OPTIONS = ["noChildren", "haveChildren", "wantChildren", "openToChildren", "dontWantChildren"] as const;
+const ZODIAC_OPTIONS = ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"] as const;
 
 const INTEREST_TAGS = [
   "Fitness", "Travel", "Music", "Art", "Gaming", "Cooking", "Photography",
   "Reading", "Hiking", "Movies", "Coffee", "Yoga", "Dancing", "Tech",
   "Fashion", "Sports", "Pets", "Nature", "Food", "Nightlife",
+];
+
+const SPOKEN_LANGUAGES = [
+  "Arabic", "English", "French", "Spanish", "German", "Portuguese",
+  "Italian", "Turkish", "Chinese", "Japanese", "Korean", "Hindi",
+  "Russian", "Dutch", "Persian", "Polish", "Swedish", "Greek",
 ];
 
 function StepDots({ step }: { step: number }) {
@@ -79,6 +96,39 @@ function SelectChip({
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+      {children}
+    </label>
+  );
+}
+
+function FieldInput({
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+  type = "text",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  maxLength?: number;
+  type?: string;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      maxLength={maxLength}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 rounded-2xl bg-foreground/5 border border-border focus:border-primary focus:outline-none text-sm transition"
+    />
+  );
+}
+
 export default function DiscoverSetupScreen({ existing, onDone }: Props) {
   const { user } = useAuth();
   const { t } = useLang();
@@ -88,21 +138,42 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [manageLoading, setManageLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [displayName, setDisplayName] = useState(existing?.displayName ?? user?.displayName ?? "");
   const [age, setAge] = useState<string>(existing?.age ? String(existing.age) : "");
   const [gender, setGender] = useState(existing?.gender ?? "");
+  const [height, setHeight] = useState<string>(existing?.height ? String(existing.height) : "");
+  const [nationality, setNationality] = useState(existing?.nationality ?? "");
+
   const [city, setCity] = useState(existing?.city ?? "");
   const [bio, setBio] = useState(existing?.bio ?? "");
   const [lookingFor, setLookingFor] = useState(existing?.lookingFor ?? "");
+
+  const [education, setEducation] = useState(existing?.education ?? "");
+  const [occupation, setOccupation] = useState(existing?.occupation ?? "");
+  const [religion, setReligion] = useState(existing?.religion ?? "");
+  const [zodiac, setZodiac] = useState(existing?.zodiac ?? "");
+  const [children, setChildren] = useState(existing?.children ?? "");
+
   const [fitness, setFitness] = useState(existing?.fitness ?? "");
   const [smoking, setSmoking] = useState(existing?.smoking ?? "");
+  const [drinking, setDrinking] = useState(existing?.drinking ?? "");
   const [interests, setInterests] = useState<string[]>(existing?.interests ?? []);
+  const [languages, setLanguages] = useState<string[]>(existing?.languages ?? []);
+
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
 
   function toggleInterest(tag: string) {
     setInterests((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
+  function toggleLanguage(lang: string) {
+    setLanguages((prev) =>
+      prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
     );
   }
 
@@ -137,8 +208,9 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
   function canAdvance(): boolean {
     if (step === 0) return !!displayName.trim() && Number(age) >= 18 && !!gender;
     if (step === 1) return !!city.trim() && !!bio.trim() && !!lookingFor;
-    if (step === 2) return !!fitness && !!smoking;
-    if (step === 3) return photos.length >= 3;
+    if (step === 2) return true;
+    if (step === 3) return true;
+    if (step === 4) return photos.length >= 3;
     return false;
   }
 
@@ -156,11 +228,20 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
         age: Number(age),
         gender,
         city: city.trim(),
+        nationality: nationality.trim() || undefined,
+        height: height ? Number(height) : undefined,
         bio: bio.trim(),
         lookingFor,
         fitness,
         smoking,
+        drinking: drinking || undefined,
+        education: education || undefined,
+        occupation: occupation.trim() || undefined,
+        religion: religion || undefined,
+        children: children || undefined,
+        zodiac: zodiac || undefined,
         interests,
+        languages,
         photos,
         isActive: photos.length >= 3,
       };
@@ -170,6 +251,49 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
       toast.show(t("couldNotSend"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePause() {
+    if (!user) return;
+    setManageLoading(true);
+    try {
+      await pauseDiscoverProfile(user.uid);
+      toast.show(t("profilePaused"));
+      onDone(existing ? { ...existing, isActive: false } : null);
+    } catch {
+      toast.show(t("couldNotSend"));
+    } finally {
+      setManageLoading(false);
+    }
+  }
+
+  async function handleResume() {
+    if (!user) return;
+    setManageLoading(true);
+    try {
+      await resumeDiscoverProfile(user.uid);
+      toast.show(t("profileResumed"));
+      onDone(existing ? { ...existing, isActive: true } : null);
+    } catch {
+      toast.show(t("couldNotSend"));
+    } finally {
+      setManageLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!user) return;
+    setManageLoading(true);
+    try {
+      await deleteDiscoverProfile(user.uid);
+      toast.show(t("profileDeleted"));
+      onDone(null);
+    } catch {
+      toast.show(t("couldNotSend"));
+    } finally {
+      setManageLoading(false);
+      setConfirmDelete(false);
     }
   }
 
@@ -200,7 +324,8 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
 
       {/* Step content */}
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
-        {/* Step 0: Basic info */}
+
+        {/* ── Step 0: Basic Info ── */}
         {step === 0 && (
           <>
             <div>
@@ -209,54 +334,107 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("yourName")}
-                </label>
-                <input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  maxLength={40}
-                  placeholder={t("yourName")}
-                  className="w-full px-4 py-3 rounded-2xl bg-foreground/5 border border-border focus:border-primary focus:outline-none text-sm transition"
-                />
+                <SectionLabel>{t("yourName")}</SectionLabel>
+                <FieldInput value={displayName} onChange={setDisplayName} placeholder={t("yourName")} maxLength={40} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <SectionLabel>{t("yourAge")}</SectionLabel>
+                  <FieldInput value={age} onChange={setAge} placeholder="18" type="number" />
+                  {age && Number(age) < 18 && (
+                    <p className="text-xs text-destructive mt-1">{t("mustBe18")}</p>
+                  )}
+                </div>
+                <div>
+                  <SectionLabel>{t("yourHeight")}</SectionLabel>
+                  <div className="relative">
+                    <FieldInput value={height} onChange={setHeight} placeholder="175" type="number" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
+                  </div>
+                </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("yourAge")}
-                </label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  min={18}
-                  max={99}
-                  placeholder="18"
-                  className="w-full px-4 py-3 rounded-2xl bg-foreground/5 border border-border focus:border-primary focus:outline-none text-sm transition"
-                />
-                {age && Number(age) < 18 && (
-                  <p className="text-xs text-destructive mt-1">{t("mustBe18")}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("yourGender")}
-                </label>
+                <SectionLabel>{t("yourGender")}</SectionLabel>
                 <div className="flex flex-wrap gap-2">
                   {GENDER_OPTIONS.map((g) => (
-                    <SelectChip
-                      key={g}
-                      label={t(g)}
-                      selected={gender === g}
-                      onClick={() => setGender(g)}
-                    />
+                    <SelectChip key={g} label={t(g)} selected={gender === g} onClick={() => setGender(g)} />
                   ))}
                 </div>
               </div>
+              <div>
+                <SectionLabel>{t("yourNationality")}</SectionLabel>
+                <FieldInput value={nationality} onChange={setNationality} placeholder={t("yourNationality")} maxLength={60} />
+              </div>
             </div>
+
+            {/* Manage section — only when editing existing profile */}
+            {existing && (
+              <div className="mt-6 border-t border-border pt-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-muted-foreground">{t("manageProfile")}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${existing.isActive ? "bg-green-500" : "bg-amber-500"}`} />
+                    <span className="text-xs text-muted-foreground">{existing.isActive ? t("activeProfile") : t("pausedProfile")}</span>
+                  </div>
+                </div>
+
+                {existing.isActive ? (
+                  <button
+                    onClick={handlePause}
+                    disabled={manageLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-border text-sm font-medium hover:bg-foreground/5 disabled:opacity-50 transition"
+                  >
+                    {manageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pause className="w-4 h-4" />}
+                    {t("pauseProfile")}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleResume}
+                    disabled={manageLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-primary/40 text-primary text-sm font-medium hover:bg-primary/5 disabled:opacity-50 transition"
+                  >
+                    {manageLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    {t("resumeProfile")}
+                  </button>
+                )}
+
+                {!confirmDelete ? (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/5 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {t("deleteProfile")}
+                  </button>
+                ) : (
+                  <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-sm text-destructive">{t("deleteProfileConfirm")}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-foreground/5 transition"
+                      >
+                        {t("cancel")}
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={manageLoading}
+                        className="flex-1 py-2.5 rounded-xl bg-destructive text-white text-sm font-bold disabled:opacity-50 transition"
+                      >
+                        {manageLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t("deleteProfile")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
-        {/* Step 1: About me */}
+        {/* ── Step 1: About Me ── */}
         {step === 1 && (
           <>
             <div>
@@ -265,43 +443,26 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("yourCity")}
-                </label>
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  maxLength={60}
-                  placeholder={t("yourCity")}
-                  className="w-full px-4 py-3 rounded-2xl bg-foreground/5 border border-border focus:border-primary focus:outline-none text-sm transition"
-                />
+                <SectionLabel>{t("yourCity")}</SectionLabel>
+                <FieldInput value={city} onChange={setCity} placeholder={t("yourCity")} maxLength={60} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("bioLabel")}
-                </label>
+                <SectionLabel>{t("bioLabel")}</SectionLabel>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  maxLength={300}
-                  rows={4}
+                  maxLength={400}
+                  rows={5}
                   placeholder={t("bioPlaceholder")}
                   className="w-full px-4 py-3 rounded-2xl bg-foreground/5 border border-border focus:border-primary focus:outline-none text-sm transition resize-none"
                 />
-                <p className="text-xs text-muted-foreground text-right mt-1">{bio.length}/300</p>
+                <p className="text-xs text-muted-foreground text-right mt-1">{bio.length}/400</p>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("lookingFor")}
-                </label>
+                <SectionLabel>{t("lookingFor")}</SectionLabel>
                 <div className="flex flex-wrap gap-2">
                   {LOOKING_FOR_OPTIONS.map((opt) => (
-                    <SelectChip
-                      key={opt}
-                      label={t(opt)}
-                      selected={lookingFor === opt}
-                      onClick={() => setLookingFor(opt)}
-                    />
+                    <SelectChip key={opt} label={t(opt)} selected={lookingFor === opt} onClick={() => setLookingFor(opt)} />
                   ))}
                 </div>
               </div>
@@ -309,56 +470,47 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
           </>
         )}
 
-        {/* Step 2: Lifestyle */}
+        {/* ── Step 2: Identity ── */}
         {step === 2 && (
           <>
             <div>
-              <h2 className="text-2xl font-bold mb-1">{t("lifestyle")}</h2>
-              <p className="text-muted-foreground text-sm">{t("lifestyleSub")}</p>
+              <h2 className="text-2xl font-bold mb-1">{t("identityStep")}</h2>
+              <p className="text-muted-foreground text-sm">{t("identityStepSub")}</p>
             </div>
             <div className="space-y-5">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("fitnessLevel")}
-                </label>
+                <SectionLabel>{t("educationLevel")}</SectionLabel>
                 <div className="flex flex-wrap gap-2">
-                  {FITNESS_OPTIONS.map((opt) => (
-                    <SelectChip
-                      key={opt}
-                      label={t(opt)}
-                      selected={fitness === opt}
-                      onClick={() => setFitness(opt)}
-                    />
+                  {EDUCATION_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={education === opt} onClick={() => setEducation(education === opt ? "" : opt)} />
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("smokingHabit")}
-                </label>
+                <SectionLabel>{t("yourOccupation")}</SectionLabel>
+                <FieldInput value={occupation} onChange={setOccupation} placeholder={t("yourOccupation")} maxLength={80} />
+              </div>
+              <div>
+                <SectionLabel>{t("yourReligion")}</SectionLabel>
                 <div className="flex flex-wrap gap-2">
-                  {SMOKING_OPTIONS.map((opt) => (
-                    <SelectChip
-                      key={opt}
-                      label={t(opt)}
-                      selected={smoking === opt}
-                      onClick={() => setSmoking(opt)}
-                    />
+                  {RELIGION_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={religion === opt} onClick={() => setReligion(religion === opt ? "" : opt)} />
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                  {t("interests")} ({interests.length})
-                </label>
+                <SectionLabel>{t("yourZodiac")}</SectionLabel>
                 <div className="flex flex-wrap gap-2">
-                  {INTEREST_TAGS.map((tag) => (
-                    <SelectChip
-                      key={tag}
-                      label={tag}
-                      selected={interests.includes(tag)}
-                      onClick={() => toggleInterest(tag)}
-                    />
+                  {ZODIAC_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={zodiac === opt} onClick={() => setZodiac(zodiac === opt ? "" : opt)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <SectionLabel>{t("childrenPref")}</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {CHILDREN_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={children === opt} onClick={() => setChildren(children === opt ? "" : opt)} />
                   ))}
                 </div>
               </div>
@@ -366,8 +518,60 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
           </>
         )}
 
-        {/* Step 3: Photos */}
+        {/* ── Step 3: Lifestyle ── */}
         {step === 3 && (
+          <>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">{t("interestsStep")}</h2>
+              <p className="text-muted-foreground text-sm">{t("interestsStepSub")}</p>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <SectionLabel>{t("fitnessLevel")}</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {FITNESS_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={fitness === opt} onClick={() => setFitness(fitness === opt ? "" : opt)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <SectionLabel>{t("smokingHabit")}</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {SMOKING_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={smoking === opt} onClick={() => setSmoking(smoking === opt ? "" : opt)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <SectionLabel>{t("drinkingHabit")}</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {DRINKING_OPTIONS.map((opt) => (
+                    <SelectChip key={opt} label={t(opt)} selected={drinking === opt} onClick={() => setDrinking(drinking === opt ? "" : opt)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <SectionLabel>{t("interests")} ({interests.length})</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {INTEREST_TAGS.map((tag) => (
+                    <SelectChip key={tag} label={tag} selected={interests.includes(tag)} onClick={() => toggleInterest(tag)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <SectionLabel>{t("spokenLanguages")} ({languages.length})</SectionLabel>
+                <div className="flex flex-wrap gap-2">
+                  {SPOKEN_LANGUAGES.map((lang) => (
+                    <SelectChip key={lang} label={lang} selected={languages.includes(lang)} onClick={() => toggleLanguage(lang)} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 4: Photos ── */}
+        {step === 4 && (
           <>
             <div>
               <h2 className="text-2xl font-bold mb-1">{t("addPhotos")}</h2>
@@ -402,21 +606,13 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
                   ) : (
                     <>
                       <Camera className="w-6 h-6 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {t("addPhoto")}
-                      </span>
+                      <span className="text-xs text-muted-foreground font-medium">{t("addPhoto")}</span>
                     </>
                   )}
                 </button>
               )}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoUpload}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
             {photos.length < 3 && (
               <p className="text-xs text-muted-foreground text-center">
                 {t("minPhotos")} ({photos.length}/3)
@@ -447,7 +643,7 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
             </>
           )}
         </button>
-        {step === 2 && (
+        {(step === 2 || step === 3) && (
           <button
             onClick={() => setStep((s) => s + 1)}
             className="w-full mt-2 py-2 text-sm text-muted-foreground hover:text-foreground transition"
@@ -457,7 +653,7 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
         )}
       </div>
 
-      {/* Close / X on first step */}
+      {/* Close on first step when editing */}
       {step === 0 && existing && (
         <button
           onClick={() => onDone(existing)}
