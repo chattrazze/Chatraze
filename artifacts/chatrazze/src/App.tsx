@@ -71,6 +71,18 @@ function Shell() {
 
   const onUnreadChange = useCallback((n: number) => setUnreadTotal(n), []);
 
+  // ── App badge (iOS home screen + PWA) ─────────────────────────────────
+  useEffect(() => {
+    if (!("setAppBadge" in navigator)) return;
+    if (unreadTotal > 0) {
+      (navigator as Navigator & { setAppBadge: (n: number) => Promise<void> })
+        .setAppBadge(unreadTotal).catch(() => {});
+    } else {
+      (navigator as Navigator & { clearAppBadge: () => Promise<void> })
+        .clearAppBadge?.().catch(() => {});
+    }
+  }, [unreadTotal]);
+
   // ── Global notifications: cross-chat msgs, new statuses, missed summary ──
   const jumpToChats = useCallback(() => setTab("chats"), []);
   const jumpToStatus = useCallback(() => setTab("status"), []);

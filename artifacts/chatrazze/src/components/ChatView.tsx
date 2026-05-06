@@ -1148,6 +1148,22 @@ function formatBytes(n?: number) {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+async function downloadMedia(url: string, name: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function MessageBody({
   m, isMine, peer, onCall, highlight,
 }: {
@@ -1160,21 +1176,39 @@ function MessageBody({
   const { t } = useLang();
   if (m.type === "image" && m.mediaUrl) {
     return (
-      <a href={m.mediaUrl} target="_blank" rel="noreferrer">
-        <img src={m.mediaUrl} alt={m.mediaName || "image"} className="rounded-lg max-h-80 object-cover" />
-      </a>
+      <div className="relative group">
+        <a href={m.mediaUrl} target="_blank" rel="noreferrer">
+          <img src={m.mediaUrl} alt={m.mediaName || "image"} className="rounded-lg max-h-80 object-cover" />
+        </a>
+        <button
+          title="Download"
+          onClick={() => downloadMedia(m.mediaUrl!, m.mediaName || "image")}
+          className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition"
+        >
+          <Download className="w-4 h-4 text-white" />
+        </button>
+      </div>
     );
   }
   if (m.type === "video" && m.mediaUrl) {
     return (
-      <video
-        src={m.mediaUrl}
-        controls
-        playsInline
-        preload="metadata"
-        className="rounded-lg max-h-80 w-full"
-        style={{ WebkitPlaysinline: true } as React.CSSProperties}
-      />
+      <div className="relative group">
+        <video
+          src={m.mediaUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="rounded-lg max-h-80 w-full"
+          style={{ WebkitPlaysinline: true } as React.CSSProperties}
+        />
+        <button
+          title="Download"
+          onClick={() => downloadMedia(m.mediaUrl!, m.mediaName || "video")}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition z-10"
+        >
+          <Download className="w-4 h-4 text-white" />
+        </button>
+      </div>
     );
   }
   if (m.type === "audio" && m.mediaUrl) {
