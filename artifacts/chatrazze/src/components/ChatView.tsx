@@ -205,6 +205,13 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
 
   useEffect(() => { setSearchMatchIdx(0); }, [searchQuery]);
 
+  // Auto-focus search input when opened (works on iOS too)
+  useEffect(() => {
+    if (!searchOpen) return;
+    const timer = setTimeout(() => searchInputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, [searchOpen]);
+
   useEffect(() => {
     if (!searchOpen || searchMatches.length === 0) return;
     const msg = searchMatches[searchMatchIdx];
@@ -489,19 +496,6 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             </button>
           </div>
         )}
-        {/* Search button — direct in header */}
-        <button
-          onClick={() => {
-            setSearchQuery("");
-            setSearchMatchIdx(0);
-            setSearchOpen((v) => !v);
-            setTimeout(() => searchInputRef.current?.focus(), 100);
-          }}
-          className={`w-9 h-9 rounded-full hover:bg-foreground/5 active:scale-95 flex items-center justify-center transition ${searchOpen ? "bg-foreground/8 text-primary" : "text-muted-foreground hover:text-primary"}`}
-        >
-          <Search className="w-4.5 h-4.5" />
-        </button>
-
         {/* ⋮ Three-dot menu */}
         <div ref={headerMenuRef} className="relative">
           <button
@@ -518,7 +512,6 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   setSearchQuery("");
                   setSearchMatchIdx(0);
                   setSearchOpen(true);
-                  setTimeout(() => searchInputRef.current?.focus(), 80);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-foreground/5 active:bg-foreground/10 transition text-start"
               >
