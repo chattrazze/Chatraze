@@ -366,11 +366,11 @@ export default function Sidebar({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-[15px] truncate">
+                    <p className={`${unread > 0 ? "font-bold text-foreground" : "font-semibold"} text-[15px] truncate`}>
                       {displayName}
                     </p>
                     <span
-                      className={`text-[11px] shrink-0 ${
+                      className={`text-[11px] shrink-0 font-medium ${
                         unread > 0 ? "text-secondary" : "text-muted-foreground"
                       }`}
                     >
@@ -378,7 +378,7 @@ export default function Sidebar({
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    <p className={`text-xs truncate flex items-center gap-1 ${unread > 0 ? "text-foreground/80 font-medium" : "text-muted-foreground"}`}>
                       {iconForType(c.lastMessageType)}
                       {c.lastMessage ? (
                         <span className="truncate">{c.lastMessage}</span>
@@ -399,7 +399,7 @@ export default function Sidebar({
                         />
                       )}
                       {unread > 0 && (
-                        <span className="bg-secondary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+                        <span className="bg-secondary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
                           {unread > 99 ? "99+" : unread}
                         </span>
                       )}
