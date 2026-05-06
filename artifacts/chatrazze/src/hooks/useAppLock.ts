@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 
-const PIN_KEY     = "chatrazze:applock:pinhash";
-const CRED_KEY    = "chatrazze:applock:credid";
-const ENABLED_KEY = "chatrazze:applock:enabled";
-const BIO_KEY     = "chatrazze:applock:bioenabled";
-
 async function hashPIN(pin: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
   return Array.from(new Uint8Array(buf))
@@ -12,11 +7,32 @@ async function hashPIN(pin: string): Promise<string> {
     .join("");
 }
 
+function keys(uid: string) {
+  const id = uid || "anon";
+  return {
+    pin:     `chatrazze:applock:${id}:pinhash`,
+    cred:    `chatrazze:applock:${id}:credid`,
+    enabled: `chatrazze:applock:${id}:enabled`,
+    bio:     `chatrazze:applock:${id}:bioenabled`,
+  };
+}
+
 export function useAppLock(uid: string) {
-  const [enabled, setEnabled]     = useState(() => localStorage.getItem(ENABLED_KEY) === "true");
-  const [bioEnabled, setBioEnabled] = useState(() => localStorage.getItem(BIO_KEY) === "true");
-  const [isLocked, setIsLocked]   = useState(() => localStorage.getItem(ENABLED_KEY) === "true");
-  const [hasBio, setHasBio]       = useState(false);
+  const k = keys(uid);
+
+  const [enabled, setEnabled]       = useState(() => localStorage.getItem(k.enabled) === "true");
+  const [bioEnabled, setBioEnabled] = useState(() => localStorage.getItem(k.bio) === "true");
+  const [isLocked, setIsLocked]     = useState(() => localStorage.getItem(k.enabled) === "true");
+  const [hasBio, setHasBio]         = useState(false);
+
+  // Re-read keys when uid changes (account switch)
+  useEffect(() => {
+    const kk = keys(uid);
+    const isEn = localStorage.getItem(kk.enabled) === "true";
+    setEnabled(isEn);
+    setBioEnabled(localStorage.getItem(kk.bio) === "true");
+    setIsLocked(isEn);
+  }, [uid]);
 
   useEffect(() => {
     if (typeof PublicKeyCredential !== "undefined") {
@@ -36,25 +52,27 @@ export function useAppLock(uid: string) {
   }, [enabled]);
 
   async function setupPIN(pin: string): Promise<void> {
+    const kk = keys(uid);
     const hash = await hashPIN(pin);
-    localStorage.setItem(PIN_KEY, hash);
-    localStorage.setItem(ENABLED_KEY, "true");
+    localStorage.setItem(kk.pin, hash);
+    localStorage.setItem(kk.enabled, "true");
     setEnabled(true);
     setIsLocked(false);
   }
 
   async function verifyPIN(pin: string): Promise<boolean> {
-    const stored = localStorage.getItem(PIN_KEY);
+    const stored = localStorage.getItem(keys(uid).pin);
     if (!stored) return false;
     const hash = await hashPIN(pin);
     return hash === stored;
   }
 
   function disableAppLock(): void {
-    localStorage.removeItem(PIN_KEY);
-    localStorage.removeItem(ENABLED_KEY);
-    localStorage.removeItem(CRED_KEY);
-    localStorage.removeItem(BIO_KEY);
+    const kk = keys(uid);
+    localStorage.removeItem(kk.pin);
+    localStorage.removeItem(kk.enabled);
+    localStorage.removeItem(kk.cred);
+    localStorage.removeItem(kk.bio);
     setEnabled(false);
     setBioEnabled(false);
     setIsLocked(false);
@@ -86,9 +104,10 @@ export function useAppLock(uid: string) {
 
       if (!credential) return false;
 
+      const kk = keys(uid);
       const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-      localStorage.setItem(CRED_KEY, credId);
-      localStorage.setItem(BIO_KEY, "true");
+      localStorage.setItem(kk.cred, credId);
+      localStorage.setItem(kk.bio, "true");
       setBioEnabled(true);
       return true;
     } catch {
@@ -97,7 +116,7 @@ export function useAppLock(uid: string) {
   }
 
   async function authenticateWithBiometric(): Promise<boolean> {
-    const credIdStr = localStorage.getItem(CRED_KEY);
+    const credIdStr = localStorage.getItem(keys(uid).cred);
     if (!credIdStr) return false;
     try {
       const credIdBytes = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
