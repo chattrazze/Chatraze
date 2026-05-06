@@ -13,6 +13,7 @@ import BottomTabs, { TabKey } from "@/components/BottomTabs";
 import StatusScreen from "@/components/screens/StatusScreen";
 import CallsScreen from "@/components/screens/CallsScreen";
 import CommunitiesScreen from "@/components/screens/CommunitiesScreen";
+import DiscoverScreen from "@/components/screens/DiscoverScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import CallOverlay from "@/components/CallOverlay";
 import { AppUser, setPresence, getUser } from "@/lib/userService";
@@ -364,6 +365,11 @@ function Shell() {
               setPeer(groupPeer);
               setTab("chats");
             }}
+          />
+        )}
+        {tab === "discover" && (
+          <DiscoverScreen
+            onGoToChat={(cid, p) => { setChatId(cid); setPeer(p); setTab("chats"); }}
           />
         )}
         {tab === "profile"     && <ProfileScreen onGoToChat={(cid, p) => { setChatId(cid); setPeer(p); setTab("chats"); }} />}
