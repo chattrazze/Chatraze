@@ -318,18 +318,6 @@ export default function CommunitiesScreen({ onOpenChannel }: Props) {
           );
         })}
 
-        {/* New community button at bottom */}
-        {communities.length > 0 && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="w-full glass rounded-2xl p-5 text-center hover:bg-white/5 active:scale-[0.99] transition flex items-center justify-center gap-3"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center">
-              <Plus className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <p className="font-semibold text-sm">Start a new community</p>
-          </button>
-        )}
       </div>
 
       {/* Create community modal */}
