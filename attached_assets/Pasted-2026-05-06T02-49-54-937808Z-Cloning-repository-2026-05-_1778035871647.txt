@@ -1,0 +1,110 @@
+2026-05-06T02:49:54.937808Z	Cloning repository...
+2026-05-06T02:49:58.530593Z	From https://github.com/chattrazze/Chatraze
+2026-05-06T02:49:58.530985Z	 * branch            da21a901e6be7010994b463f8f7ee055c344328a -> FETCH_HEAD
+2026-05-06T02:49:58.53105Z	
+2026-05-06T02:49:58.94076Z	HEAD is now at da21a90 feat: add Discover feature - artifacts/chatrazze/src/components/screens/DiscoverScreen.tsx
+2026-05-06T02:49:58.941168Z	
+2026-05-06T02:49:58.995008Z	
+2026-05-06T02:49:58.995727Z	Using v2 root directory strategy
+2026-05-06T02:49:59.018021Z	Success: Finished cloning repository files
+2026-05-06T02:50:00.944069Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-06T02:50:00.944641Z	
+2026-05-06T02:50:02.034132Z	No Wrangler configuration file found. Continuing.
+2026-05-06T02:50:02.226157Z	Detected the following tools from environment: pnpm@10.11.1, nodejs@22.16.0
+2026-05-06T02:50:03.272894Z	Installing project dependencies: pnpm install
+2026-05-06T02:50:03.795524Z	Scope: all 9 workspace projects
+2026-05-06T02:50:03.8687Z	Lockfile is up to date, resolution step is skipped
+2026-05-06T02:50:03.907895Z	Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-05-06T02:50:04.018166Z	Packages: +571
+2026-05-06T02:50:04.018497Z	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-05-06T02:50:04.909617Z	Progress: resolved 571, reused 0, downloaded 188, added 176
+2026-05-06T02:50:05.910369Z	Progress: resolved 571, reused 0, downloaded 308, added 270
+2026-05-06T02:50:06.913239Z	Progress: resolved 571, reused 0, downloaded 457, added 345
+2026-05-06T02:50:07.913739Z	Progress: resolved 571, reused 0, downloaded 570, added 570
+2026-05-06T02:50:08.20392Z	Progress: resolved 571, reused 0, downloaded 571, added 571, done
+2026-05-06T02:50:08.452747Z	.../esbuild@0.27.3/node_modules/esbuild postinstall$ node install.js
+2026-05-06T02:50:08.556038Z	.../esbuild@0.27.3/node_modules/esbuild postinstall: Done
+2026-05-06T02:50:08.859275Z	
+2026-05-06T02:50:08.859908Z	devDependencies:
+2026-05-06T02:50:08.860014Z	+ prettier 3.8.1
+2026-05-06T02:50:08.860071Z	+ typescript 5.9.3
+2026-05-06T02:50:08.860126Z	
+2026-05-06T02:50:08.888893Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-06T02:50:08.927189Z	. preinstall: Done
+2026-05-06T02:50:09.14466Z	Done in 5.6s using pnpm v10.11.1
+2026-05-06T02:50:09.20328Z	Executing user command: pnpm install && pnpm run build
+2026-05-06T02:50:09.74624Z	Scope: all 9 workspace projects
+2026-05-06T02:50:09.84881Z	Lockfile is up to date, resolution step is skipped
+2026-05-06T02:50:09.927314Z	Already up to date
+2026-05-06T02:50:10.957534Z	
+2026-05-06T02:50:11.021459Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-06T02:50:11.036065Z	. preinstall: Done
+2026-05-06T02:50:11.175271Z	Done in 1.7s using pnpm v10.11.1
+2026-05-06T02:50:11.663306Z	
+2026-05-06T02:50:11.663607Z	> workspace@0.0.0 build /opt/buildhome/repo
+2026-05-06T02:50:11.663733Z	> pnpm run typecheck && pnpm -r --if-present run build
+2026-05-06T02:50:11.663814Z	
+2026-05-06T02:50:12.00444Z	
+2026-05-06T02:50:12.004735Z	> workspace@0.0.0 typecheck /opt/buildhome/repo
+2026-05-06T02:50:12.004828Z	> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+2026-05-06T02:50:12.004888Z	
+2026-05-06T02:50:12.376501Z	
+2026-05-06T02:50:12.376805Z	> workspace@0.0.0 typecheck:libs /opt/buildhome/repo
+2026-05-06T02:50:12.37686Z	> tsc --build
+2026-05-06T02:50:12.376926Z	
+2026-05-06T02:50:14.949583Z	Scope: 4 of 9 workspace projects
+2026-05-06T02:50:14.953451Z	artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-06T02:50:14.954151Z	artifacts/chatrazze typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-06T02:50:14.954651Z	artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-06T02:50:14.955721Z	scripts typecheck$ tsc -p tsconfig.json --noEmit
+2026-05-06T02:50:16.506447Z	scripts typecheck: Done
+2026-05-06T02:50:17.378039Z	artifacts/api-server typecheck: Done
+2026-05-06T02:50:21.843696Z	artifacts/mockup-sandbox typecheck: Done
+2026-05-06T02:50:27.108731Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverScreen.tsx(465,20): error TS2345: Argument of type '"loadFailed"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.110141Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverScreen.tsx(557,64): error TS2345: Argument of type '"discover"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.110719Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverScreen.tsx(570,16): error TS2345: Argument of type '"discoverMatches"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.111021Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverScreen.tsx(582,22): error TS2345: Argument of type '"editDiscoverProfile"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.111186Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverScreen.tsx(672,55): error TS2345: Argument of type '"moreProfiles"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.111453Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(194,52): error TS2345: Argument of type '"discoverSetup"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.111656Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(207,58): error TS2345: Argument of type '"basicInfo"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.111852Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(208,63): error TS2345: Argument of type '"basicInfoSub"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.112242Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(213,22): error TS2345: Argument of type '"yourName"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.112529Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(219,34): error TS2345: Argument of type '"yourName"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.112656Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(225,22): error TS2345: Argument of type '"yourAge"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.112728Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(237,67): error TS2345: Argument of type '"mustBe18"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.112988Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(242,22): error TS2345: Argument of type '"yourGender"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.113669Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(248,32): error TS2345: Argument of type '"male" | "female" | "nonBinary" | "other"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.114122Z	artifacts/chatrazze typecheck:   Type '"male"' is not assignable to type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.114319Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(263,58): error TS2345: Argument of type '"aboutMe"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.11449Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(264,63): error TS2345: Argument of type '"aboutMeSub"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.115223Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(269,22): error TS2345: Argument of type '"yourCity"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.115496Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(275,34): error TS2345: Argument of type '"yourCity"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117441Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(288,34): error TS2345: Argument of type '"bioPlaceholder"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117596Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(295,22): error TS2345: Argument of type '"lookingFor"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117658Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(301,32): error TS2345: Argument of type '"friendship" | "dating" | "relationship" | "casual"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117714Z	artifacts/chatrazze typecheck:   Type '"friendship"' is not assignable to type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117775Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(316,58): error TS2345: Argument of type '"lifestyle"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117829Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(317,63): error TS2345: Argument of type '"lifestyleSub"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117872Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(322,22): error TS2345: Argument of type '"fitnessLevel"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.117929Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(328,32): error TS2345: Argument of type '"active" | "sedentary" | "lightlyActive" | "veryActive"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.11798Z	artifacts/chatrazze typecheck:   Type '"active"' is not assignable to type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118024Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(337,22): error TS2345: Argument of type '"smokingHabit"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118082Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(343,32): error TS2345: Argument of type '"neverSmoking" | "sometimesSmoking" | "regularlySmoking" | "tryingToQuit"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118139Z	artifacts/chatrazze typecheck:   Type '"neverSmoking"' is not assignable to type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118187Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(352,22): error TS2345: Argument of type '"interests"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118233Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(373,58): error TS2345: Argument of type '"addPhotos"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.11828Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(374,63): error TS2345: Argument of type '"minPhotos"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118347Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(406,28): error TS2345: Argument of type '"addPhoto"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118389Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(422,20): error TS2345: Argument of type '"minPhotos"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118433Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(441,18): error TS2345: Argument of type '"saveProfile"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118477Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(445,18): error TS2345: Argument of type '"next"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.118527Z	artifacts/chatrazze typecheck: src/components/screens/DiscoverSetupScreen.tsx(455,16): error TS2345: Argument of type '"skipForNow"' is not assignable to parameter of type '"online" | "lastSeen" | "members" | "video" | "image" | "available" | "status" | "calls" | "communities" | "chats" | "profile" | "statusTitle" | "statusSub" | "myStatus" | "tapToAdd" | ... 335 more ... | "biometricNotAvailable"'.
+2026-05-06T02:50:27.179725Z	artifacts/chatrazze typecheck: Failed
+2026-05-06T02:50:27.195228Z	/opt/buildhome/repo/artifacts/chatrazze:
+2026-05-06T02:50:27.19553Z	 ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/chatrazze@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+2026-05-06T02:50:27.195645Z	Exit status 2
+2026-05-06T02:50:27.248425Z	 ELIFECYCLE  Command failed with exit code 2.
+2026-05-06T02:50:27.287682Z	 ELIFECYCLE  Command failed with exit code 2.
+2026-05-06T02:50:27.314787Z	Failed: Error while executing user command. Exited with error code: 2
+2026-05-06T02:50:27.320642Z	Failed: build command exited with code: 1
+2026-05-06T02:50:27.992789Z	Failed: error occurred while running build command
