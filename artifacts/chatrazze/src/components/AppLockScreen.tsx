@@ -3,6 +3,25 @@ import { Delete, Lock } from "lucide-react";
 import { useLang } from "@/hooks/useLang";
 import type { AppLockHook } from "@/hooks/useAppLock";
 
+function FaceIdIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* Corner brackets */}
+      <path d="M4 8V5a1 1 0 0 1 1-1h3" />
+      <path d="M16 4h3a1 1 0 0 1 1 1v3" />
+      <path d="M20 16v3a1 1 0 0 1-1 1h-3" />
+      <path d="M8 20H5a1 1 0 0 1-1-1v-3" />
+      {/* Eyes */}
+      <circle cx="9" cy="10" r="0.5" fill="currentColor" />
+      <circle cx="15" cy="10" r="0.5" fill="currentColor" />
+      {/* Nose line */}
+      <path d="M12 10v2.5" />
+      {/* Smile */}
+      <path d="M9 15.5c0 0 1 1.5 3 1.5s3-1.5 3-1.5" />
+    </svg>
+  );
+}
+
 type Mode = "unlock" | "setup-new" | "setup-confirm";
 
 interface Props {
@@ -179,7 +198,7 @@ export default function AppLockScreen({
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span className="text-2xl leading-none">🪪</span>
+                    <FaceIdIcon className="w-7 h-7 text-white/80" />
                     <span className="text-[9px] text-white/40">{t("useFaceId")}</span>
                   </>
                 )}

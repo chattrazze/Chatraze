@@ -1166,7 +1166,16 @@ function MessageBody({
     );
   }
   if (m.type === "video" && m.mediaUrl) {
-    return <video src={m.mediaUrl} controls className="rounded-lg max-h-80 w-full" />;
+    return (
+      <video
+        src={m.mediaUrl}
+        controls
+        playsInline
+        preload="metadata"
+        className="rounded-lg max-h-80 w-full"
+        style={{ WebkitPlaysinline: true } as React.CSSProperties}
+      />
+    );
   }
   if (m.type === "audio" && m.mediaUrl) {
     return <AudioPlayer src={m.mediaUrl} name={m.mediaName} isMine={isMine} />;
