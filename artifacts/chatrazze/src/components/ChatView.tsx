@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  clearChatMessages,
   deleteMessage,
   listenToChat,
   listenToMessages,
@@ -104,6 +105,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchMatchIdx, setSearchMatchIdx] = useState(0);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
   const headerMenuRef  = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const msgRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -526,6 +528,14 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                 <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span>{t("chatBg")}</span>
               </button>
+              <div className="h-px bg-border" />
+              <button
+                onClick={() => { setShowHeaderMenu(false); setShowConfirmClear(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-destructive/10 active:bg-destructive/15 transition text-start text-destructive"
+              >
+                <Trash2 className="w-4 h-4 shrink-0" />
+                <span>{t("clearChat")}</span>
+              </button>
             </div>
           )}
         </div>
@@ -620,6 +630,35 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Chat Confirmation Dialog */}
+      {showConfirmClear && (
+        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="glass rounded-3xl p-6 w-full max-w-sm text-center space-y-4 shadow-2xl">
+            <p className="font-semibold text-base">{t("confirmClear")}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmClear(false)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-white/5 transition"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                onClick={async () => {
+                  setShowConfirmClear(false);
+                  try {
+                    await clearChatMessages(chatId);
+                    showToast(t("clearChat"));
+                  } catch { showToast("Error clearing chat"); }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition"
+              >
+                {t("confirm")}
+              </button>
             </div>
           </div>
         </div>

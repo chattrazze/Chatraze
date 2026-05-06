@@ -727,6 +727,32 @@ export async function deleteMessage(messageId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function clearChatMessages(chatId: string): Promise<void> {
+  const { error } = await supabase.from("messages").delete().eq("chat_id", chatId);
+  if (error) throw error;
+  await supabase.from("chats").update({
+    last_message: null,
+    last_message_type: null,
+    last_message_at: null,
+    last_message_by: null,
+  }).eq("id", chatId);
+}
+
+export async function deleteGroup(chatId: string, adminUid: string): Promise<void> {
+  const { data: chatData } = await supabase
+    .from("chats")
+    .select("created_by")
+    .eq("id", chatId)
+    .single();
+  const createdBy = (chatData as Record<string, unknown> | null)?.created_by as string | null;
+  if (!createdBy || createdBy !== adminUid) {
+    throw new Error("Only the group admin can delete this group.");
+  }
+  await supabase.from("messages").delete().eq("chat_id", chatId);
+  const { error } = await supabase.from("chats").delete().eq("id", chatId);
+  if (error) throw error;
+}
+
 export async function getGroupById(chatId: string): Promise<ChatDoc | null> {
   const { data, error } = await supabase
     .from("chats")

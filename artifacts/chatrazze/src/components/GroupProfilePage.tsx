@@ -5,6 +5,7 @@ import { AppUser, getUser, searchUsers } from "@/lib/userService";
 import {
   addMemberToGroup,
   clearGroupMessages,
+  deleteGroup,
   getChatStats,
   getGroupInfo,
   getMessages,
@@ -306,6 +307,16 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
       await clearGroupMessages(chatId, user.uid);
       setAllMessages([]);
       toast.show(t("chatCleared"));
+    } catch { toast.show(t("couldNotSaveProfile")); }
+  }
+
+  // delete group (admin only)
+  async function handleDeleteGroup() {
+    if (!user) return;
+    try {
+      await deleteGroup(chatId, user.uid);
+      toast.show(t("groupDeleted"));
+      onLeft();
     } catch { toast.show(t("couldNotSaveProfile")); }
   }
 
@@ -867,6 +878,16 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
               )}
               {/* Divider */}
               <div className="h-px bg-border mx-4 my-1" />
+              {/* Delete group (admin only) */}
+              {isAdmin && (
+                <button
+                  onClick={() => { setShowActionSheet(false); setConfirm({ msg: t("confirmDeleteGroup"), onOk: handleDeleteGroup }); }}
+                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-red-500/10 transition text-red-500"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <span className="text-sm font-medium">{t("deleteGroup")}</span>
+                </button>
+              )}
               {/* Leave */}
               <button
                 onClick={() => { setShowActionSheet(false); setConfirm({ msg: t("leaveGroup") + "?", onOk: handleLeave }); }}
