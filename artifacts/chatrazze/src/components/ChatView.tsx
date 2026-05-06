@@ -709,7 +709,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
             />
           </div>
         </div>
-        <div className="max-w-2xl mx-auto space-y-4 pt-2">
+        <div className="space-y-4 pt-2">
           {grouped.map((g) => (
             <div key={g.label} className="space-y-2">
               <div className="flex justify-center">
@@ -796,7 +796,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
 
       {/* Footer */}
       <footer className="glass border-t border-border p-3">
-        <div className="max-w-2xl mx-auto flex items-end gap-2">
+        <div className="flex items-end gap-2">
 
           {/* Attach button + dropdown */}
           {!isRecording && <div className="relative">
@@ -1217,7 +1217,7 @@ function MessageBody({
     return (
       <div className="relative group">
         <a href={m.mediaUrl} target="_blank" rel="noreferrer">
-          <img src={m.mediaUrl} alt={m.mediaName || "image"} className="rounded-lg max-h-80 object-cover" />
+          <img src={m.mediaUrl} alt={m.mediaName || "image"} className="rounded-lg max-h-80 w-full object-cover" />
         </a>
         <button
           title="Download"
