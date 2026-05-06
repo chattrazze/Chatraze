@@ -178,7 +178,7 @@ export default function CommunitiesScreen({ onOpenChannel }: Props) {
   return (
     <div className="flex-1 flex flex-col h-full">
       {/* Header */}
-      <header className="px-5 pt-6 pb-4 glass border-b border-border flex items-start justify-between gap-3">
+      <header className="px-5 pt-6 pb-4 glass border-b border-border flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Communities</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -287,7 +287,7 @@ export default function CommunitiesScreen({ onOpenChannel }: Props) {
                           : <Hash className="w-4 h-4 text-accent" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{ch.name}</p>
+                        <p className={`text-sm truncate ${ch.unread > 0 ? "font-semibold text-foreground" : "font-normal"}`}>{ch.name}</p>
                         <p className="text-xs text-muted-foreground truncate">
                           {ch.lastMessage ?? ch.description ?? `${ch.memberCount} members`}
                         </p>

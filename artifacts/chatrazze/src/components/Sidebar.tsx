@@ -8,8 +8,11 @@ import { useToast } from "@/components/Toast";
 import { sendChatRequest, listenToPendingRequests, getRequestBetween } from "@/lib/requestService";
 import ChatRequestsPanel from "@/components/ChatRequestsPanel";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   Check,
+  ChevronRight,
   Globe,
   Hand,
   ImageIcon,
@@ -57,6 +60,14 @@ export default function Sidebar({
       return new Set();
     }
   });
+  const [archived, setArchived] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem("chatrazze:archived");
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch { return new Set(); }
+  });
+  const [showArchived, setShowArchived] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ chatId: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -133,6 +144,7 @@ export default function Sidebar({
   const filtered = useMemo(() => {
     if (!user) return [];
     return chats.filter((c) => {
+      if (archived.has(c.id)) return false;
       const isGroup = c.type === "group" || c.members.length > 2;
       const peerId = !isGroup ? c.members.find((m) => m !== user.uid) : undefined;
       const peer = peerId ? peers[peerId] : undefined;
@@ -151,7 +163,24 @@ export default function Sidebar({
       }
       return true;
     });
-  }, [chats, peers, user, search, filter, favorites]);
+  }, [chats, peers, user, search, filter, favorites, archived]);
+
+  const archivedChats = useMemo(() => {
+    if (!user) return [];
+    return chats.filter((c) => archived.has(c.id));
+  }, [chats, archived, user]);
+
+  function toggleArchive(chatId: string) {
+    setArchived((prev) => {
+      const next = new Set(prev);
+      if (next.has(chatId)) next.delete(chatId);
+      else next.add(chatId);
+      try { localStorage.setItem("chatrazze:archived", JSON.stringify(Array.from(next))); }
+      catch { /* ignore */ }
+      return next;
+    });
+    setContextMenu(null);
+  }
 
   function toggleFavorite(uid: string) {
     setFavorites((prev) => {
@@ -312,14 +341,35 @@ export default function Sidebar({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {filtered.length === 0 && (
+      <div className="flex-1 overflow-y-auto scrollbar-thin relative">
+        {/* Context menu overlay */}
+        {contextMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+            <div
+              className="fixed z-50 bg-popover border border-border rounded-2xl shadow-2xl p-2 min-w-[190px]"
+              style={{ top: contextMenu.y, left: Math.min(contextMenu.x, window.innerWidth - 210) }}
+            >
+              <button
+                onClick={() => toggleArchive(contextMenu.chatId)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm hover:bg-foreground/5 transition text-left"
+              >
+                {archived.has(contextMenu.chatId) ? (
+                  <><ArchiveRestore className="w-4 h-4 text-primary shrink-0" /><span>{t("unarchiveChat")}</span></>
+                ) : (
+                  <><Archive className="w-4 h-4 text-muted-foreground shrink-0" /><span>{t("archiveChat")}</span></>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+
+        {filtered.length === 0 && archivedChats.length === 0 && (
           <div className="p-8 text-sm text-muted-foreground text-center">
-            {search || filter !== "all"
-              ? t("noChatsFilter")
-              : t("noChatsYet")}
+            {search || filter !== "all" ? t("noChatsFilter") : t("noChatsYet")}
           </div>
         )}
+
         {filtered.map((c) => {
           const isGroup = c.type === "group" || c.members.length > 2;
           const peerId = !isGroup ? c.members.find((m) => m !== user.uid) : undefined;
@@ -348,6 +398,10 @@ export default function Sidebar({
                   ? "bg-foreground/5 border-l-primary"
                   : "border-l-transparent hover:bg-foreground/5"
               }`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ chatId: c.id, x: e.clientX, y: Math.min(e.clientY, window.innerHeight - 110) });
+              }}
             >
               <button
                 onClick={handleSelect}
@@ -393,10 +447,7 @@ export default function Sidebar({
                     </p>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {isFav && (
-                        <Star
-                          className="w-3 h-3 text-amber-400 fill-amber-400"
-                          aria-label="Favorite"
-                        />
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" aria-label="Favorite" />
                       )}
                       {unread > 0 && (
                         <span className="bg-secondary text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center shadow-sm">
@@ -407,22 +458,87 @@ export default function Sidebar({
                   </div>
                 </div>
               </button>
-              {peerId && !isGroup && (
+              <div className="opacity-0 group-hover:opacity-100 transition flex flex-col justify-center gap-0.5 px-1">
+                {peerId && !isGroup && (
+                  <button
+                    onClick={() => toggleFavorite(peerId)}
+                    title={isFav ? t("removeFavorite") : t("markFavorite")}
+                    className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition"
+                  >
+                    {isFav ? (
+                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                    ) : (
+                      <Star className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                )}
                 <button
-                  onClick={() => toggleFavorite(peerId)}
-                  className="opacity-0 group-hover:opacity-100 transition px-2"
-                  title={isFav ? t("removeFavorite") : t("markFavorite")}
+                  onClick={() => toggleArchive(c.id)}
+                  title={t("archiveChat")}
+                  className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition"
                 >
-                  {isFav ? (
-                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  ) : (
-                    <Star className="w-4 h-4 text-muted-foreground" />
-                  )}
+                  <Archive className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
-              )}
+              </div>
             </div>
           );
         })}
+
+        {/* Archived section */}
+        {archivedChats.length > 0 && !search && filter === "all" && (
+          <>
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground hover:bg-foreground/5 transition border-t border-border"
+            >
+              <Archive className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left font-medium">{t("archived")} ({archivedChats.length})</span>
+              <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showArchived ? "rotate-90" : ""}`} />
+            </button>
+            {showArchived && archivedChats.map((c) => {
+              const isGroup = c.type === "group" || c.members.length > 2;
+              const peerId = !isGroup ? c.members.find((m) => m !== user.uid) : undefined;
+              const peer = peerId ? peers[peerId] : undefined;
+              const displayName = isGroup ? (c.name || t("group")) : (peer?.displayName || t("loadingDots"));
+              const photoURL = isGroup ? null : (peer?.photoURL ?? null);
+              const active = c.id === selectedChatId;
+              const lastTime = c.lastMessageAt ? new Date(c.lastMessageAt) : undefined;
+              return (
+                <div
+                  key={c.id}
+                  className={`group relative w-full flex items-stretch border-l-2 border-b border-b-border transition ${
+                    active ? "bg-foreground/5 border-l-primary" : "border-l-transparent hover:bg-foreground/5"
+                  }`}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ chatId: c.id, x: e.clientX, y: Math.min(e.clientY, window.innerHeight - 110) });
+                  }}
+                >
+                  <button
+                    onClick={() => isGroup ? onSelectChat(c.id, buildGroupPeer(c)) : peer && onSelectChat(c.id, peer)}
+                    className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0"
+                  >
+                    <Avatar name={displayName} photoURL={photoURL} size={48} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-[15px] truncate text-muted-foreground">{displayName}</p>
+                        <span className="text-[11px] shrink-0 text-muted-foreground">{lastTime ? formatTime(lastTime) : ""}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{c.lastMessage || ""}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => toggleArchive(c.id)}
+                    title={t("unarchiveChat")}
+                    className="opacity-0 group-hover:opacity-100 transition px-2 flex items-center"
+                  >
+                    <ArchiveRestore className="w-4 h-4 text-primary" />
+                  </button>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {showNewChat && (
