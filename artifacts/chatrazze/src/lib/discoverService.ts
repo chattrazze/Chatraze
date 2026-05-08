@@ -80,7 +80,7 @@ export async function upsertDiscoverProfile(
 ): Promise<void> {
   const photos = profile.photos ?? [];
   const isActive =
-    photos.length >= 3 &&
+    photos.length >= 1 &&
     !!profile.displayName?.trim() &&
     (profile.age ?? 0) >= 18 &&
     !!profile.bio?.trim();
