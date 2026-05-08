@@ -86,35 +86,50 @@ export async function upsertDiscoverProfile(
     !!profile.bio?.trim();
 
   const now = new Date().toISOString();
-  const { error } = await supabase.from("discover_profiles").upsert(
-    {
-      user_id: uid,
-      display_name: profile.displayName ?? "",
-      age: profile.age ?? 0,
-      gender: profile.gender ?? "",
-      city: profile.city ?? "",
-      nationality: profile.nationality ?? null,
-      height: profile.height ?? null,
-      bio: profile.bio ?? "",
-      looking_for: profile.lookingFor ?? "friendship",
-      fitness: profile.fitness ?? "",
-      smoking: profile.smoking ?? "",
-      drinking: profile.drinking ?? null,
-      education: profile.education ?? null,
-      occupation: profile.occupation ?? null,
-      religion: profile.religion ?? null,
-      children: profile.children ?? null,
-      zodiac: profile.zodiac ?? null,
-      interests: profile.interests ?? [],
-      languages: profile.languages ?? [],
-      photos,
-      is_active: isActive,
-      created_at: now,
-      updated_at: now,
-    },
-    { onConflict: "user_id", ignoreDuplicates: false }
-  );
-  if (error) throw error;
+  const payload = {
+    user_id: uid,
+    display_name: profile.displayName ?? "",
+    age: profile.age ?? 0,
+    gender: profile.gender ?? "",
+    city: profile.city ?? "",
+    nationality: profile.nationality ?? null,
+    height: profile.height ?? null,
+    bio: profile.bio ?? "",
+    looking_for: profile.lookingFor ?? "friendship",
+    fitness: profile.fitness ?? "",
+    smoking: profile.smoking ?? "",
+    drinking: profile.drinking ?? null,
+    education: profile.education ?? null,
+    occupation: profile.occupation ?? null,
+    religion: profile.religion ?? null,
+    children: profile.children ?? null,
+    zodiac: profile.zodiac ?? null,
+    interests: profile.interests ?? [],
+    languages: profile.languages ?? [],
+    photos,
+    is_active: isActive,
+    updated_at: now,
+  };
+
+  // Check if row already exists
+  const { data: existing } = await supabase
+    .from("discover_profiles")
+    .select("user_id")
+    .eq("user_id", uid)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("discover_profiles")
+      .update(payload)
+      .eq("user_id", uid);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("discover_profiles")
+      .insert({ ...payload, created_at: now });
+    if (error) throw error;
+  }
 }
 
 export async function pauseDiscoverProfile(uid: string): Promise<void> {
