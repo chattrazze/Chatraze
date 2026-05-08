@@ -338,7 +338,7 @@ function Shell() {
                 onUnreadChange={onUnreadChange}
               />
             </div>
-            <div className={`${chatId ? "flex" : "hidden md:flex"} flex-1`}>
+            <div className={`${chatId ? "flex" : "hidden md:flex"} flex-1 min-h-0 overflow-hidden`}>
               {chatId && peer ? (
                 <ChatView chatId={chatId} peer={peer} onBack={() => { setChatId(null); setPeer(null); }} onCall={onStartCall} />
               ) : (
