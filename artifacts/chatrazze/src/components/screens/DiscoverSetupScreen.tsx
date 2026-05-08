@@ -247,8 +247,10 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
       };
       await upsertDiscoverProfile(user.uid, profile);
       onDone(profile);
-    } catch {
-      toast.show(t("couldNotSend"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
+      console.error("[DiscoverSetup] save failed:", msg, err);
+      toast.show(msg.length > 80 ? msg.slice(0, 80) + "…" : msg);
     } finally {
       setSaving(false);
     }
