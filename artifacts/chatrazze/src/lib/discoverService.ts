@@ -85,6 +85,7 @@ export async function upsertDiscoverProfile(
     (profile.age ?? 0) >= 18 &&
     !!profile.bio?.trim();
 
+  const now = new Date().toISOString();
   const { error } = await supabase.from("discover_profiles").upsert(
     {
       user_id: uid,
@@ -108,9 +109,10 @@ export async function upsertDiscoverProfile(
       languages: profile.languages ?? [],
       photos,
       is_active: isActive,
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     },
-    { onConflict: "user_id" }
+    { onConflict: "user_id", ignoreDuplicates: false }
   );
   if (error) throw error;
 }
