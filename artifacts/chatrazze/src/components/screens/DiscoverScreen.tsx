@@ -243,15 +243,16 @@ function ProfileSheet({
           </h2>
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1">
             {profile.city && (
-              <div className="flex items-center gap-1 text-white/90 text-sm">
-                <MapPin className="w-3.5 h-3.5" />
-                {profile.city}{profile.nationality ? `, ${profile.nationality}` : ""}
-              </div>
-            )}
-            {distanceLabel && (
-              <div className="flex items-center gap-1 text-white/90 text-sm font-semibold bg-black/30 backdrop-blur-sm px-2.5 py-0.5 rounded-full">
-                <Navigation className="w-3.5 h-3.5" />
-                {distanceLabel}
+              <div className="flex items-center gap-1.5 text-white/90 text-sm">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span>{profile.city}{profile.nationality ? `, ${profile.nationality}` : ""}</span>
+                {distanceLabel && (
+                  <>
+                    <span className="text-white/50">·</span>
+                    <Navigation className="w-3 h-3 shrink-0" />
+                    <span>{distanceLabel}</span>
+                  </>
+                )}
               </div>
             )}
             {profile.height && (
@@ -506,15 +507,16 @@ function SwipeCard({
             </h2>
             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
               {profile.city && (
-                <div className="flex items-center gap-1 text-white/80 text-sm">
+                <div className="flex items-center gap-1.5 text-white/80 text-sm">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{profile.city}</span>
-                </div>
-              )}
-              {distanceLabel && (
-                <div className="flex items-center gap-1 text-white/90 text-sm font-medium bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                  <Navigation className="w-3 h-3 shrink-0" />
-                  {distanceLabel}
+                  {distanceLabel && (
+                    <>
+                      <span className="text-white/50">·</span>
+                      <Navigation className="w-3 h-3 shrink-0" />
+                      <span>{distanceLabel}</span>
+                    </>
+                  )}
                 </div>
               )}
               {profile.height && (
