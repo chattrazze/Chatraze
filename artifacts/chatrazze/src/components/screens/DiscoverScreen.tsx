@@ -408,14 +408,45 @@ function SwipeCard({
   photoIdx,
   onPhotoNav,
   onShowProfile,
+  dragX,
+  dragY,
+  isDragging,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
 }: {
   profile: DiscoverProfile;
   photoIdx: number;
   onPhotoNav: (dir: "left" | "right") => void;
   onShowProfile: () => void;
+  dragX: number;
+  dragY: number;
+  isDragging: boolean;
+  onDragStart: (x: number, y: number) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: () => void;
 }) {
+  const rotation = dragX * 0.08;
+  const likeOpacity = Math.min(Math.max(dragX / 80, 0), 1);
+  const nopeOpacity = Math.min(Math.max(-dragX / 80, 0), 1);
+
   return (
-    <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl select-none">
+    <div
+      className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl select-none cursor-grab active:cursor-grabbing"
+      style={{
+        transform: isDragging ? `translate(${dragX}px, ${dragY * 0.3}px) rotate(${rotation}deg)` : undefined,
+        transition: isDragging ? "none" : "transform 0.3s ease",
+        touchAction: "none",
+        userSelect: "none",
+      }}
+      onMouseDown={(e) => { onDragStart(e.clientX, e.clientY); }}
+      onMouseMove={(e) => { if (isDragging) onDragMove(e.clientX, e.clientY); }}
+      onMouseUp={onDragEnd}
+      onMouseLeave={onDragEnd}
+      onTouchStart={(e) => { onDragStart(e.touches[0].clientX, e.touches[0].clientY); }}
+      onTouchMove={(e) => { e.preventDefault(); onDragMove(e.touches[0].clientX, e.touches[0].clientY); }}
+      onTouchEnd={onDragEnd}
+    >
       {profile.photos[photoIdx] ? (
         <img
           src={profile.photos[photoIdx]}
@@ -429,13 +460,32 @@ function SwipeCard({
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+
+      {/* LIKE overlay */}
+      <div
+        className="absolute top-10 left-6 border-[3px] border-green-400 px-5 py-2 rounded-xl"
+        style={{ opacity: likeOpacity, transform: "rotate(-20deg)" }}
+      >
+        <span className="text-green-400 text-2xl font-black tracking-widest">LIKE</span>
+      </div>
+      {/* NOPE overlay */}
+      <div
+        className="absolute top-10 right-6 border-[3px] border-red-400 px-5 py-2 rounded-xl"
+        style={{ opacity: nopeOpacity, transform: "rotate(20deg)" }}
+      >
+        <span className="text-red-400 text-2xl font-black tracking-widest">NOPE</span>
+      </div>
+
       <div className="absolute top-4 left-0 right-0 px-4">
         <PhotoDots total={profile.photos.length} current={photoIdx} />
       </div>
-      <div className="absolute inset-0 flex">
-        <div className="w-1/3 h-full" onClick={() => onPhotoNav("left")} />
-        <div className="flex-1 h-full" onClick={() => onPhotoNav("right")} />
-      </div>
+      {/* Photo nav — only tappable when not dragging */}
+      {!isDragging && (
+        <div className="absolute inset-0 flex">
+          <div className="w-1/3 h-full" onClick={() => onPhotoNav("left")} />
+          <div className="flex-1 h-full" onClick={() => onPhotoNav("right")} />
+        </div>
+      )}
       <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
         <div className="flex items-end justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -455,6 +505,7 @@ function SwipeCard({
             </div>
           </div>
           <button
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onShowProfile(); }}
             className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0"
           >
@@ -517,6 +568,38 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const [viewingMatch, setViewingMatch] = useState<DiscoverMatch | null>(null);
   const swipeLock = useRef(false);
+
+  /* ── Drag state for Tinder-like swipe ── */
+  const [dragX, setDragX] = useState(0);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
+  const SWIPE_THRESHOLD = 90;
+
+  function handleDragStart(x: number, y: number) {
+    if (swiping || swipeLock.current) return;
+    dragStartX.current = x;
+    dragStartY.current = y;
+    setIsDragging(true);
+  }
+
+  function handleDragMove(x: number, y: number) {
+    if (!isDragging) return;
+    setDragX(x - dragStartX.current);
+    setDragY(y - dragStartY.current);
+  }
+
+  function handleDragEnd() {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const finalX = dragX;
+    setDragX(0);
+    setDragY(0);
+    if (Math.abs(finalX) >= SWIPE_THRESHOLD) {
+      handleSwipe(finalX > 0 ? "like" : "skip");
+    }
+  }
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -583,9 +666,9 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
     swipeLock.current = false;
   }
 
-  function handleGoToChat(chatId: string, displayName: string, photoURL?: string) {
+  function handleGoToChat(chatId: string, userId: string, displayName: string, photoURL?: string) {
     const peer: AppUser = {
-      uid: chatId,
+      uid: userId,
       displayName,
       email: null,
       phone: null,
@@ -698,9 +781,9 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                     height: "clamp(320px, 62vh, 520px)",
                     zIndex: 2,
                     transform: swiping === "like"
-                      ? "translateX(130%) rotate(15deg)"
+                      ? "translateX(130%) rotate(20deg)"
                       : swiping === "skip"
-                      ? "translateX(-130%) rotate(-15deg)"
+                      ? "translateX(-130%) rotate(-20deg)"
                       : "translateX(0) rotate(0deg)",
                     opacity: swiping ? 0 : 1,
                   }}
@@ -710,17 +793,13 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                     photoIdx={photoIdx}
                     onPhotoNav={handlePhotoNav}
                     onShowProfile={() => setShowDetail(true)}
+                    dragX={dragX}
+                    dragY={dragY}
+                    isDragging={isDragging}
+                    onDragStart={handleDragStart}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleDragEnd}
                   />
-                  {swiping === "like" && (
-                    <div className="absolute top-6 left-5 border-[3px] border-green-400 px-4 py-1.5 rounded-xl rotate-[-15deg]">
-                      <span className="text-green-400 text-xl font-black tracking-widest">LIKE</span>
-                    </div>
-                  )}
-                  {swiping === "skip" && (
-                    <div className="absolute top-6 right-5 border-[3px] border-red-400 px-4 py-1.5 rounded-xl rotate-[15deg]">
-                      <span className="text-red-400 text-xl font-black tracking-widest">NOPE</span>
-                    </div>
-                  )}
                 </div>
 
                 {feed.length - currentIdx > 1 && (
@@ -792,6 +871,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
           onChat={() => {
             handleGoToChat(
               viewingMatch.chatId,
+              viewingMatch.userId,
               viewingMatch.displayName,
               viewingMatch.photos[0]
             );
@@ -807,7 +887,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
           me={myProfile}
           matched={match.profile}
           onChat={() => {
-            handleGoToChat(match.chatId, match.profile.displayName, match.profile.photos[0]);
+            handleGoToChat(match.chatId, match.profile.userId, match.profile.displayName, match.profile.photos[0]);
             setMatch(null);
           }}
           onClose={() => setMatch(null)}
