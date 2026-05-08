@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLang } from "@/hooks/useLang";
 import { useToast } from "@/components/Toast";
@@ -164,6 +164,15 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
   const [languages, setLanguages] = useState<string[]>(existing?.languages ?? []);
 
   const [photos, setPhotos] = useState<string[]>(existing?.photos ?? []);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    );
+  }, []);
 
   function toggleInterest(tag: string) {
     setInterests((prev) =>
@@ -244,6 +253,8 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
         languages,
         photos,
         isActive: photos.length >= 1,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
       };
       await upsertDiscoverProfile(user.uid, profile);
       onDone(profile);
