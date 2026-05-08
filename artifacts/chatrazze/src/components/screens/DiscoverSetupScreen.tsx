@@ -243,7 +243,7 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
         interests,
         languages,
         photos,
-        isActive: photos.length >= 3,
+        isActive: photos.length >= 1,
       };
       await upsertDiscoverProfile(user.uid, profile);
       onDone(profile);
@@ -613,9 +613,9 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
               )}
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-            {photos.length < 3 && (
+            {photos.length < 1 && (
               <p className="text-xs text-muted-foreground text-center">
-                {t("minPhotos")} ({photos.length}/3)
+                {t("minPhotos")} ({photos.length}/1)
               </p>
             )}
           </>
