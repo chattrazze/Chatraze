@@ -210,7 +210,7 @@ export default function DiscoverSetupScreen({ existing, onDone }: Props) {
     if (step === 1) return !!city.trim() && !!bio.trim() && !!lookingFor;
     if (step === 2) return true;
     if (step === 3) return true;
-    if (step === 4) return photos.length >= 3;
+    if (step === 4) return photos.length >= 1;
     return false;
   }
 
