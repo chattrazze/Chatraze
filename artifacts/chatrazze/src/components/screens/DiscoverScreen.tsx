@@ -7,6 +7,7 @@ import {
   getDiscoverFeed,
   getMatches,
   swipe as doSwipe,
+  haversineDistance,
   type DiscoverProfile,
   type DiscoverMatch,
 } from "@/lib/discoverService";
@@ -21,6 +22,7 @@ import {
   Info,
   MapPin,
   MessageCircle,
+  Navigation,
   Pencil,
   RefreshCw,
   Ruler,
@@ -178,11 +180,13 @@ function ProfileSheet({
   onClose,
   onChat,
   t,
+  distanceLabel,
 }: {
   profile: DiscoverProfile;
   onClose: () => void;
   onChat?: () => void;
   t: (k: string) => string;
+  distanceLabel?: string | null;
 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
 
@@ -242,6 +246,12 @@ function ProfileSheet({
               <div className="flex items-center gap-1 text-white/90 text-sm">
                 <MapPin className="w-3.5 h-3.5" />
                 {profile.city}{profile.nationality ? `, ${profile.nationality}` : ""}
+              </div>
+            )}
+            {distanceLabel && (
+              <div className="flex items-center gap-1 text-white/90 text-sm font-semibold bg-black/30 backdrop-blur-sm px-2.5 py-0.5 rounded-full">
+                <Navigation className="w-3.5 h-3.5" />
+                {distanceLabel}
               </div>
             )}
             {profile.height && (
@@ -414,6 +424,7 @@ function SwipeCard({
   onDragStart,
   onDragMove,
   onDragEnd,
+  distanceLabel,
 }: {
   profile: DiscoverProfile;
   photoIdx: number;
@@ -425,6 +436,7 @@ function SwipeCard({
   onDragStart: (x: number, y: number) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: () => void;
+  distanceLabel?: string | null;
 }) {
   const rotation = dragX * 0.08;
   const likeOpacity = Math.min(Math.max(dragX / 80, 0), 1);
@@ -492,11 +504,17 @@ function SwipeCard({
             <h2 className="text-white text-2xl font-black leading-tight truncate">
               {profile.displayName}{profile.age ? `, ${profile.age}` : ""}
             </h2>
-            <div className="flex items-center gap-3 mt-0.5">
+            <div className="flex items-center gap-3 mt-0.5 flex-wrap">
               {profile.city && (
                 <div className="flex items-center gap-1 text-white/80 text-sm">
                   <MapPin className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{profile.city}</span>
+                </div>
+              )}
+              {distanceLabel && (
+                <div className="flex items-center gap-1 text-white/90 text-sm font-medium bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                  <Navigation className="w-3 h-3 shrink-0" />
+                  {distanceLabel}
                 </div>
               )}
               {profile.height && (
@@ -568,6 +586,23 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const [viewingMatch, setViewingMatch] = useState<DiscoverMatch | null>(null);
   const swipeLock = useRef(false);
+  const [myCoords, setMyCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMyCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {}
+    );
+  }, []);
+
+  function getDistanceLabel(profile: DiscoverProfile): string | null {
+    if (!myCoords || profile.latitude == null || profile.longitude == null) return null;
+    const km = haversineDistance(myCoords.lat, myCoords.lng, profile.latitude, profile.longitude);
+    if (km < 1) return "< 1 km";
+    if (km < 10) return `${Math.round(km * 10) / 10} km`;
+    return `${Math.round(km)} km`;
+  }
 
   /* ── Drag state for Tinder-like swipe ── */
   const [dragX, setDragX] = useState(0);
@@ -799,6 +834,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
                     onDragStart={handleDragStart}
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
+                    distanceLabel={getDistanceLabel(current)}
                   />
                 </div>
 
@@ -847,6 +883,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
           profile={current}
           onClose={() => setShowDetail(false)}
           t={t}
+          distanceLabel={getDistanceLabel(current)}
         />
       )}
 
@@ -868,6 +905,7 @@ export default function DiscoverScreen({ onGoToChat }: Props) {
             isActive: true,
           }}
           onClose={() => setViewingMatch(null)}
+          distanceLabel={viewingMatch.profile ? getDistanceLabel(viewingMatch.profile) : null}
           onChat={() => {
             handleGoToChat(
               viewingMatch.chatId,
