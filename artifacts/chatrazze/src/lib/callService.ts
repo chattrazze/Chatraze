@@ -4,7 +4,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 export type CallKind = "voice" | "video";
 
 export interface CallSignal {
-  type: "offer" | "answer" | "ice" | "hangup" | "decline" | "notify";
+  type: "offer" | "answer" | "ice" | "hangup" | "decline" | "notify" | "media";
   callId: string;
   from: string;
   fromName: string;
@@ -12,6 +12,9 @@ export interface CallSignal {
   kind: CallKind;
   sdp?: RTCSessionDescriptionInit;
   ice?: RTCIceCandidateInit;
+  /** "media" signal: peer's mic / camera state (shown as indicators, like WhatsApp). */
+  muted?: boolean;
+  cameraOff?: boolean;
 }
 
 export const ICE_CONFIG: RTCConfiguration = {

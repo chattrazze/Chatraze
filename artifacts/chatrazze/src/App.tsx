@@ -68,7 +68,7 @@ function Shell() {
   const appLock = useAppLock(user?.uid ?? "");
 
   const webrtc = useWebRTC(user?.uid ?? "", user?.displayName ?? user?.email ?? "Me");
-  const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, localVideoRef, remoteVideoRef, remoteAudioRef, remoteEarpieceRef } = webrtc;
+  const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, flipCamera, localVideoRef, remoteVideoRef, remoteAudioRef, remoteEarpieceRef } = webrtc;
 
   const onUnreadChange = useCallback((n: number) => setUnreadTotal(n), []);
 
@@ -309,6 +309,7 @@ function Shell() {
           onToggleMute={toggleMute}
           onToggleCamera={toggleCamera}
           onToggleSpeaker={toggleSpeaker}
+          onFlipCamera={flipCamera}
           localVideoRef={localVideoRef}
           remoteVideoRef={remoteVideoRef}
           remoteAudioRef={remoteAudioRef}
