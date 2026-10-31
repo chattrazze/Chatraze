@@ -94,15 +94,14 @@ function Shell() {
     onJumpToStatus: jumpToStatus,
   });
 
-  // ── Invite link handler (#invite:GROUP_ID) ────────────────────────────
+  // ── Invite link handler (/join/:token) ─────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const hash = window.location.hash;
-    if (!hash.startsWith("#invite:")) return;
-    const groupId = hash.slice("#invite:".length).trim();
-    if (!groupId) return;
-    window.history.replaceState(null, "", window.location.pathname);
-    joinGroupByInvite(groupId, user.uid)
+    const match = window.location.pathname.match(/^\/join\/([0-9a-fA-F-]{36})\/?$/);
+    if (!match) return;
+    const token = match[1];
+    window.history.replaceState(null, "", "/");
+    joinGroupByInvite(token)
       .then((chat) => {
         const groupPeer: AppUser = {
           uid: chat.id,
