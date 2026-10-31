@@ -16,6 +16,32 @@ export interface AppUser {
   members?: string[];
 }
 
+/* ── Private contact data (email / phone) lives in `profile_private`, readable only by its owner. ── */
+
+async function currentUid(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id ?? null;
+}
+
+async function getOwnPrivate(uid: string): Promise<{ email: string | null; phone: string | null }> {
+  const { data } = await supabase
+    .from("profile_private")
+    .select("email, phone")
+    .eq("uid", uid)
+    .maybeSingle();
+  return {
+    email: ((data as Record<string, unknown> | null)?.email as string) ?? null,
+    phone: ((data as Record<string, unknown> | null)?.phone as string) ?? null,
+  };
+}
+
+async function savePrivate(uid: string, fields: { email?: string | null; phone?: string | null }) {
+  const row: Record<string, unknown> = { uid, updated_at: new Date().toISOString() };
+  if (fields.email !== undefined) row.email = fields.email;
+  if (fields.phone !== undefined) row.phone = fields.phone;
+  await supabase.from("profile_private").upsert(row, { onConflict: "uid" });
+}
+
 export async function ensureUserDoc(user: {
   uid: string;
   email: string | null;
@@ -36,8 +62,6 @@ export async function ensureUserDoc(user: {
   if (!existing) {
     const { data, error } = await supabase.from("profiles").insert({
       uid: user.uid,
-      email: user.email,
-      phone: user.phoneNumber ?? null,
       display_name: displayName,
       photo_url: user.photoURL ?? null,
       bio: null,
@@ -45,7 +69,8 @@ export async function ensureUserDoc(user: {
       last_seen: new Date().toISOString(),
     }).select().single();
     if (error) throw error;
-    return rowToAppUser(data);
+    await savePrivate(user.uid, { email: user.email, phone: user.phoneNumber ?? null });
+    return { ...rowToAppUser(data), email: user.email, phone: user.phoneNumber ?? null };
   }
 
   await supabase
@@ -59,7 +84,13 @@ export async function ensureUserDoc(user: {
     .eq("uid", user.uid)
     .single();
 
-  return data ? rowToAppUser(data) : null;
+  if (!data) return null;
+  const priv = await getOwnPrivate(user.uid);
+  if (!priv.email && user.email) {
+    await savePrivate(user.uid, { email: user.email });
+    priv.email = user.email;
+  }
+  return { ...rowToAppUser(data), email: priv.email, phone: priv.phone };
 }
 
 function rowToAppUser(row: Record<string, unknown>): AppUser {
@@ -83,7 +114,13 @@ export async function getUser(uid: string): Promise<AppUser | null> {
     .select("*")
     .eq("uid", uid)
     .single();
-  return data ? rowToAppUser(data) : null;
+  if (!data) return null;
+  const user = rowToAppUser(data);
+  if (uid === (await currentUid())) {
+    const priv = await getOwnPrivate(uid);
+    return { ...user, email: priv.email, phone: priv.phone };
+  }
+  return user;
 }
 
 /* ── Batch fetch multiple users in ONE query ── */
@@ -129,26 +166,24 @@ export function setCachedUsers(users: AppUser[]) {
   writeCache(cache);
 }
 
+/* Search by display name (partial) or by an exact e-mail address. Runs server-side so
+   other users' e-mails are never exposed. */
 export async function searchUsers(qStr: string): Promise<AppUser[]> {
   const term = qStr.trim();
   if (!term) return [];
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .or(`display_name.ilike.%${term}%,email.ilike.%${term}%`)
-    .limit(20);
+  const { data } = await supabase.rpc("search_users", { p_query: term });
 
-  return (data ?? []).map(rowToAppUser);
+  return ((data ?? []) as Record<string, unknown>[]).map(rowToAppUser);
 }
 
 export function listenToUser(uid: string, cb: (u: AppUser | null) => void) {
-  supabase
-    .from("profiles")
-    .select("*")
-    .eq("uid", uid)
-    .single()
-    .then(({ data }) => cb(data ? rowToAppUser(data) : null));
+  let priv: { email: string | null; phone: string | null } = { email: null, phone: null };
+
+  getUser(uid).then((u) => {
+    if (u) priv = { email: u.email, phone: u.phone };
+    cb(u);
+  });
 
   const channel = supabase
     .channel(`profile:${uid}`)
@@ -156,7 +191,7 @@ export function listenToUser(uid: string, cb: (u: AppUser | null) => void) {
       "postgres_changes",
       { event: "*", schema: "public", table: "profiles", filter: `uid=eq.${uid}` },
       (payload) => {
-        cb(payload.new ? rowToAppUser(payload.new as Record<string, unknown>) : null);
+        cb(payload.new ? { ...rowToAppUser(payload.new as Record<string, unknown>), ...priv } : null);
       },
     )
     .subscribe();
@@ -178,10 +213,12 @@ export async function updateUserProfile(
   const mapped: Record<string, unknown> = {};
   if (updates.displayName !== undefined) mapped.display_name = updates.displayName;
   if (updates.photoURL !== undefined) mapped.photo_url = updates.photoURL;
-  if (updates.phone !== undefined) mapped.phone = updates.phone;
   if (updates.bio !== undefined) mapped.bio = updates.bio;
   if (updates.lang !== undefined) mapped.lang = updates.lang;
-  await supabase.from("profiles").update(mapped).eq("uid", uid);
+  if (Object.keys(mapped).length > 0) {
+    await supabase.from("profiles").update(mapped).eq("uid", uid);
+  }
+  if (updates.phone !== undefined) await savePrivate(uid, { phone: updates.phone });
 }
 
 export async function setUserLang(uid: string, lang: string): Promise<void> {
