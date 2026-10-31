@@ -217,10 +217,10 @@ export default function Sidebar({
 
   return (
     <aside className="w-full md:w-[360px] flex flex-col glass border-r border-border h-full">
-      <header className="px-5 pt-6 pb-3 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold tracking-tight">{t("chats")}</h1>
-          <div className="flex items-center gap-2">
+      <header className="px-4 pt-5 pb-2">
+        <div className="flex flex-col-reverse gap-2 mb-3">
+          <h1 className="text-[34px] leading-tight font-bold tracking-tight">{t("chats")}</h1>
+          <div className="flex items-center justify-end gap-2.5">
             {/* Language picker */}
             <div className="relative">
               <button
@@ -300,7 +300,7 @@ export default function Sidebar({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-input border border-border rounded-2xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/40 transition">
+        <div className="flex items-center gap-2 bg-foreground/[0.07] rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/40 transition">
           <Search className="w-4 h-4 text-muted-foreground" />
           <input
             value={search}
@@ -317,7 +317,7 @@ export default function Sidebar({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 mt-3 overflow-x-auto scrollbar-thin">
+        <div className="flex items-center gap-2 mt-3 pb-1 overflow-x-auto scrollbar-thin">
           {(["all", "unread", "favorites", "groups"] as Filter[]).map((f) => {
             const label =
               f === "all"       ? t("filterAll")
@@ -328,10 +328,10 @@ export default function Sidebar({
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition ${
+                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition ${
                   filter === f
-                    ? "bg-primary text-primary-foreground shadow"
-                    : "bg-foreground/5 text-muted-foreground hover:text-foreground"
+                    ? "bg-primary/15 text-primary border-primary/40 font-semibold"
+                    : "bg-transparent text-muted-foreground border-border hover:text-foreground"
                 }`}
               >
                 {label}
@@ -393,7 +393,7 @@ export default function Sidebar({
           return (
             <div
               key={c.id}
-              className={`group relative w-full flex items-stretch border-l-2 border-b border-b-border transition ${
+              className={`group relative w-full flex items-stretch border-l-2 transition ${
                 active
                   ? "bg-foreground/5 border-l-primary"
                   : "border-l-transparent hover:bg-foreground/5"
@@ -408,7 +408,7 @@ export default function Sidebar({
                 className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0"
               >
                 <div className="relative shrink-0">
-                  <Avatar name={displayName} photoURL={photoURL} size={48} />
+                  <Avatar name={displayName} photoURL={photoURL} size={56} />
                   {isOnline && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-secondary border-2 border-background" />
                   )}
@@ -420,11 +420,11 @@ export default function Sidebar({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`${unread > 0 ? "font-bold text-foreground" : "font-semibold"} text-[15px] truncate`}>
+                    <p className={`${unread > 0 ? "font-bold text-foreground" : "font-semibold"} text-[17px] truncate`}>
                       {displayName}
                     </p>
                     <span
-                      className={`text-[11px] shrink-0 font-medium ${
+                      className={`text-[13px] shrink-0 font-medium ${
                         unread > 0 ? "text-secondary" : "text-muted-foreground"
                       }`}
                     >
@@ -432,7 +432,7 @@ export default function Sidebar({
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className={`text-xs truncate flex items-center gap-1 ${unread > 0 ? "text-foreground/80 font-medium" : "text-muted-foreground"}`}>
+                    <p className={`text-[14px] truncate flex items-center gap-1 ${unread > 0 ? "text-foreground/80 font-medium" : "text-muted-foreground"}`}>
                       {iconForType(c.lastMessageType)}
                       {c.lastMessage ? (
                         <span className="truncate">{c.lastMessage}</span>
@@ -506,7 +506,7 @@ export default function Sidebar({
               return (
                 <div
                   key={c.id}
-                  className={`group relative w-full flex items-stretch border-l-2 border-b border-b-border transition ${
+                  className={`group relative w-full flex items-stretch border-l-2 transition ${
                     active ? "bg-foreground/5 border-l-primary" : "border-l-transparent hover:bg-foreground/5"
                   }`}
                   onContextMenu={(e) => {
@@ -518,7 +518,7 @@ export default function Sidebar({
                     onClick={() => isGroup ? onSelectChat(c.id, buildGroupPeer(c)) : peer && onSelectChat(c.id, peer)}
                     className="flex-1 text-left px-4 py-3 flex items-center gap-3 min-w-0"
                   >
-                    <Avatar name={displayName} photoURL={photoURL} size={48} />
+                    <Avatar name={displayName} photoURL={photoURL} size={56} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-semibold text-[15px] truncate text-muted-foreground">{displayName}</p>
