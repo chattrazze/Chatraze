@@ -109,18 +109,30 @@ function rowToAppUser(row: Record<string, unknown>): AppUser {
 }
 
 export async function getUser(uid: string): Promise<AppUser | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("uid", uid)
-    .single();
+  const isOwn = uid === (await currentUid()); // local session lookup — no network
+  // Run both queries in parallel (used to be sequential → slow profile screen)
+  const [{ data }, priv] = await Promise.all([
+    supabase.from("profiles").select("*").eq("uid", uid).single(),
+    isOwn ? getOwnPrivate(uid) : Promise.resolve(null),
+  ]);
   if (!data) return null;
   const user = rowToAppUser(data);
-  if (uid === (await currentUid())) {
-    const priv = await getOwnPrivate(uid);
-    return { ...user, email: priv.email, phone: priv.phone };
+  if (isOwn) {
+    // Cache own public profile (no e-mail/phone) so the Profile tab can render instantly
+    try { localStorage.setItem(OWN_KEY + uid, JSON.stringify({ ...user, email: null, phone: null })); } catch { /* ignore */ }
+    return { ...user, email: priv?.email ?? null, phone: priv?.phone ?? null };
   }
   return user;
+}
+
+const OWN_KEY = "chatrazze:ownprofile:";
+
+/** Last known own profile (no TTL) for instant first paint. */
+export function getCachedOwnProfile(uid: string): AppUser | null {
+  try {
+    const raw = localStorage.getItem(OWN_KEY + uid);
+    return raw ? (JSON.parse(raw) as AppUser) : null;
+  } catch { return null; }
 }
 
 /* ── Batch fetch multiple users in ONE query ── */

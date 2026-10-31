@@ -450,7 +450,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
   return (
     <section className="relative flex-1 flex flex-col h-full">
       {/* Header */}
-      <header className="flex items-center gap-3 px-4 py-3 glass border-b border-border">
+      <header className="relative z-40 flex items-center gap-3 px-4 py-3 glass border-b border-border">
         <button onClick={onBack} className="md:hidden p-1.5 rounded-lg hover:bg-foreground/5">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -688,7 +688,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto scrollbar-thin px-4 pb-6 transition-all duration-500"
+        className="flex-1 overflow-y-auto scrollbar-thin px-4 pb-6"
         style={{ ...chatBg.current.style, overscrollBehaviorY: "contain" }}
         onTouchStart={handlePullStart}
         onTouchMove={handlePullMove}
@@ -795,7 +795,7 @@ export default function ChatView({ chatId, peer, onBack, onCall }: Props) {
       )}
 
       {/* Footer */}
-      <footer className="glass border-t border-border p-3">
+      <footer className="relative z-30 glass border-t border-border p-3">
         <div className="flex items-end gap-2">
 
           {/* Attach button + dropdown */}

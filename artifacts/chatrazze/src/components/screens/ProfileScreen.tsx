@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { logOut } from "@/lib/auth";
-import { getUser, updateUserProfile, uploadAvatar, searchUsers } from "@/lib/userService";
+import { getUser, getCachedOwnProfile, updateUserProfile, uploadAvatar, searchUsers } from "@/lib/userService";
 import type { AppUser } from "@/lib/userService";
 import { useToast } from "@/components/Toast";
 import { useTheme } from "@/hooks/useTheme";
@@ -465,8 +465,9 @@ export default function ProfileScreen({ onGoToChat }: {
   const { show } = useToast();
   const { theme, toggle } = useTheme();
   const { t, lang } = useLang();
-  const [name, setName] = useState(user?.displayName ?? "");
-  const [bio, setBio] = useState(t("defaultBio"));
+  const cachedMe = user ? getCachedOwnProfile(user.uid) : null;
+  const [name, setName] = useState(cachedMe?.displayName || user?.displayName || "");
+  const [bio, setBio] = useState(cachedMe?.bio || t("defaultBio"));
   const [saving, setSaving] = useState(false);
   const [panel, setPanel] = useState<SettingPanel>(null);
   const [showBgPicker, setShowBgPicker] = useState(false);
@@ -475,7 +476,7 @@ export default function ProfileScreen({ onGoToChat }: {
   const chatBg = useChatBg(user?.uid ?? "");
   const appLock = useAppLock(user?.uid ?? "");
   const [showLockSetup, setShowLockSetup] = useState(false);
-  const [photoURL, setPhotoURL] = useState<string | null>(user?.photoURL ?? null);
+  const [photoURL, setPhotoURL] = useState<string | null>(cachedMe?.photoURL ?? user?.photoURL ?? null);
   const [uploading, setUploading] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | undefined>();
   const fileRef = useRef<HTMLInputElement>(null);
