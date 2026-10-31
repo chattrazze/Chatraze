@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { listenToUserChats, ChatDoc, createChat, createGroupChat } from "@/lib/chatService";
-import { AppUser, getUsersBatch, getCachedUsers, setCachedUsers, searchUsers } from "@/lib/userService";
+import { AppUser, getUsersBatch, getCachedUsers, setCachedUsers, searchUsers, setUserLang } from "@/lib/userService";
 import Avatar from "@/components/Avatar";
 import { useLang, LANG_LIST } from "@/hooks/useLang";
 import { useToast } from "@/components/Toast";
@@ -235,7 +235,7 @@ export default function Sidebar({
                   {LANG_LIST.map((l) => (
                     <button
                       key={l.code}
-                      onClick={() => { setLang(l.code); setShowLang(false); }}
+                      onClick={() => { setLang(l.code); if (user) setUserLang(user.uid, l.code).catch(() => {}); setShowLang(false); }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition ${
                         lang === l.code
                           ? "bg-primary text-primary-foreground font-semibold"
