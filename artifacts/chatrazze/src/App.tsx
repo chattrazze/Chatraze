@@ -70,6 +70,11 @@ function Shell() {
   const webrtc = useWebRTC(user?.uid ?? "", user?.displayName ?? user?.email ?? "Me");
   const { state, initiateCall, acceptCall, declineCall, hangup, handleSignal, toggleMute, toggleCamera, toggleSpeaker, flipCamera, localVideoRef, remoteVideoRef, remoteAudioRef, remoteEarpieceRef } = webrtc;
 
+  // Warm the own-profile cache right after login so the Profile tab opens instantly
+  useEffect(() => {
+    if (user?.uid) getUser(user.uid).catch(() => {});
+  }, [user?.uid]);
+
   const onUnreadChange = useCallback((n: number) => setUnreadTotal(n), []);
 
   // ── App badge (iOS home screen + PWA) ─────────────────────────────────

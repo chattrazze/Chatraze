@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { listenToUserChats, ChatDoc, createChat, createGroupChat } from "@/lib/chatService";
 import { AppUser, getUsersBatch, getCachedUsers, setCachedUsers, searchUsers, setUserLang } from "@/lib/userService";
@@ -230,23 +231,37 @@ export default function Sidebar({
               >
                 <Globe className="w-5 h-5" />
               </button>
-              {showLang && (
-                <div className="absolute right-0 top-11 z-50 bg-popover border border-border rounded-2xl shadow-2xl p-3 w-52 grid grid-cols-2 gap-1.5">
-                  {LANG_LIST.map((l) => (
-                    <button
-                      key={l.code}
-                      onClick={() => { setLang(l.code); if (user) setUserLang(user.uid, l.code).catch(() => {}); setShowLang(false); }}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition ${
-                        lang === l.code
-                          ? "bg-primary text-primary-foreground font-semibold"
-                          : "hover:bg-foreground/8"
-                      }`}
-                    >
-                      <span className="text-[11px] font-mono font-bold opacity-60">{l.iso}</span>
-                      <span>{l.label}</span>
-                    </button>
-                  ))}
-                </div>
+              {showLang && createPortal(
+                <div
+                  className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/50"
+                  onClick={() => setShowLang(false)}
+                >
+                  <div
+                    className="bg-popover text-foreground border border-border rounded-3xl shadow-2xl p-4 w-full max-w-xs"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p className="text-sm font-semibold mb-3 px-1 flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" /> Language
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {LANG_LIST.map((l) => (
+                        <button
+                          key={l.code}
+                          onClick={() => { setLang(l.code); if (user) setUserLang(user.uid, l.code).catch(() => {}); setShowLang(false); }}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition ${
+                            lang === l.code
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "bg-foreground/5 hover:bg-foreground/10"
+                          }`}
+                        >
+                          <span className="text-[11px] font-mono font-bold opacity-60">{l.iso}</span>
+                          <span className="truncate">{l.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>,
+                document.body,
               )}
             </div>
 
