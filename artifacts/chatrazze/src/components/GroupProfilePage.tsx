@@ -195,7 +195,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
 
   /* invite link / QR */
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteUrl, setInviteUrl] = useState(`${window.location.origin}${window.location.pathname}#invite:${chatId}`);
+  const [inviteUrl, setInviteUrl] = useState("");
 
   /* encryption info */
   const [showEncrypt, setShowEncrypt] = useState(false);
@@ -970,7 +970,7 @@ export default function GroupProfilePage({ chatId, group, onBack, onLeft, onMemb
           </div>
           <div className="flex justify-center mb-4">
             <div className="bg-white p-3 rounded-2xl shadow">
-              <QRCodeSVG value={inviteUrl} size={180} />
+              <QRCodeSVG value={inviteUrl || window.location.origin} size={180} />
             </div>
           </div>
           <div className="flex items-center gap-2 bg-input border border-border rounded-xl px-3 py-2 mb-3">
