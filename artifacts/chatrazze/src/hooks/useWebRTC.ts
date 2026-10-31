@@ -28,7 +28,18 @@ export interface WebRTCState {
   cameraOff: boolean;
   speakerOn: boolean;
   elapsedSec: number;
+  /** Peer muted their mic / turned their camera off (received via "media" signal). */
+  remoteMuted: boolean;
+  remoteCameraOff: boolean;
+  /** Network dropped temporarily; WebRTC is trying to recover. */
+  reconnecting: boolean;
+  facingMode: "user" | "environment";
 }
+
+// WhatsApp-style timings
+const NO_ANSWER_TIMEOUT_MS = 45_000;   // caller gives up if nobody answers
+const INCOMING_STALE_MS = 12_000;      // callee stops ringing if caller vanished
+const RECONNECT_GIVEUP_MS = 30_000;    // end call if connection can't recover
 
 const INITIAL: WebRTCState = {
   phase: "idle",
@@ -42,6 +53,10 @@ const INITIAL: WebRTCState = {
   cameraOff: false,
   speakerOn: true, // speaker on by default — avoids iOS autoplay block on earpiece
   elapsedSec: 0,
+  remoteMuted: false,
+  remoteCameraOff: false,
+  reconnecting: false,
+  facingMode: "user",
 };
 
 function log(...args: unknown[]) {
@@ -64,6 +79,16 @@ export function useWebRTC(myUid: string, myName: string) {
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteDescSetRef = useRef<boolean>(false);
   const activeCallIdRef = useRef<string | null>(null);
+
+  // Always-fresh identity for callbacks created with empty deps
+  const idRef = useRef({ myUid, myName });
+  idRef.current = { myUid, myName };
+
+  const noAnswerTimerRef = useRef<number | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const incomingWatchRef = useRef<number | null>(null);
+  const lastNotifyRef = useRef<number>(0);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -96,10 +121,59 @@ export function useWebRTC(myUid: string, myName: string) {
     }
   }
 
+  function clearTimer(ref: { current: number | null }, kind: "timeout" | "interval") {
+    if (ref.current) {
+      if (kind === "timeout") window.clearTimeout(ref.current);
+      else window.clearInterval(ref.current);
+      ref.current = null;
+    }
+  }
+
+  // Keep the screen awake during a call (like WhatsApp)
+  async function acquireWakeLock() {
+    try {
+      const wl = (navigator as unknown as {
+        wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
+      }).wakeLock;
+      if (!wl || wakeLockRef.current) return;
+      wakeLockRef.current = await wl.request("screen");
+    } catch { /* not supported / denied */ }
+  }
+  function releaseWakeLock() {
+    try { wakeLockRef.current?.release().catch(() => {}); } catch { /* ignore */ }
+    wakeLockRef.current = null;
+  }
+
+  // Tell the peer our mic / camera state so they can show indicators
+  function sendMedia() {
+    const { callId, peerUid, kind, muted, cameraOff } = stateRef.current;
+    if (!callId || !peerUid) return;
+    broadcastSignal({
+      type: "media", callId, from: idRef.current.myUid, fromName: idRef.current.myName,
+      to: peerUid, kind, muted, cameraOff,
+    });
+  }
+
+  // End the call and notify the peer
+  function endCallAndNotify() {
+    const { callId, peerUid, kind } = stateRef.current;
+    if (callId && peerUid) {
+      broadcastSignal({
+        type: "hangup", callId, from: idRef.current.myUid, fromName: idRef.current.myName,
+        to: peerUid, kind,
+      });
+    }
+    resetState();
+  }
+
   function resetState() {
     stopRinging();
     stopTimer();
     stopNotifyRetransmit();
+    clearTimer(noAnswerTimerRef, "timeout");
+    clearTimer(reconnectTimerRef, "timeout");
+    clearTimer(incomingWatchRef, "interval");
+    releaseWakeLock();
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     try { pcRef.current?.close(); } catch {}
     pcRef.current = null;
@@ -233,9 +307,26 @@ export function useWebRTC(myUid: string, myName: string) {
       log("ICE state:", pc.iceConnectionState);
       if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         stopRinging();
+        clearTimer(noAnswerTimerRef, "timeout");
+        clearTimer(reconnectTimerRef, "timeout");
         if (stateRef.current.phase !== "connected") {
           startTimer();
-          set({ phase: "connected" });
+          set({ phase: "connected", reconnecting: false });
+          // Share our mic/camera state (twice — broadcast delivery isn't guaranteed)
+          sendMedia();
+          window.setTimeout(() => { if (stateRef.current.phase === "connected") sendMedia(); }, 1500);
+        } else if (stateRef.current.reconnecting) {
+          set({ reconnecting: false });
+        }
+      }
+      if (pc.iceConnectionState === "disconnected" && stateRef.current.phase === "connected") {
+        // Temporary network drop → show "Reconnecting…", give up after a while
+        set({ reconnecting: true });
+        if (!reconnectTimerRef.current) {
+          reconnectTimerRef.current = window.setTimeout(() => {
+            reconnectTimerRef.current = null;
+            if (stateRef.current.reconnecting) endCallAndNotify();
+          }, RECONNECT_GIVEUP_MS);
         }
       }
       if (pc.iceConnectionState === "failed") {
@@ -248,7 +339,7 @@ export function useWebRTC(myUid: string, myName: string) {
       log("Connection state:", pc.connectionState);
       if (pc.connectionState === "failed") {
         log("Connection failed completely");
-        resetState();
+        endCallAndNotify();
       }
     };
 
@@ -314,6 +405,17 @@ export function useWebRTC(myUid: string, myName: string) {
       activeCallIdRef.current = callId;
       set({ phase: "calling", callId, peerUid, peerName, kind });
       startRinging("outgoing");
+      acquireWakeLock();
+
+      // Nobody answered → hang up (the app logs it as an unanswered call)
+      clearTimer(noAnswerTimerRef, "timeout");
+      noAnswerTimerRef.current = window.setTimeout(() => {
+        noAnswerTimerRef.current = null;
+        if (stateRef.current.phase === "calling" && activeCallIdRef.current === callId) {
+          log("No answer — ending call");
+          endCallAndNotify();
+        }
+      }, NO_ANSWER_TIMEOUT_MS);
 
       try {
         const stream = await getMedia(kind);
@@ -367,8 +469,10 @@ export function useWebRTC(myUid: string, myName: string) {
     async (sig: CallSignal) => {
       log("Accepting call from:", sig.fromName);
       stopRinging();
+      clearTimer(incomingWatchRef, "interval");
       activeCallIdRef.current = sig.callId;
       set({ phase: "connecting", callId: sig.callId, peerUid: sig.from, peerName: sig.fromName, kind: sig.kind });
+      acquireWakeLock();
 
       try {
         const stream = await getMedia(sig.kind);
@@ -428,14 +532,37 @@ export function useWebRTC(myUid: string, myName: string) {
           broadcastSignal({ type: "decline", callId: sig.callId, from: myUid, fromName: myName, to: sig.from, kind: sig.kind });
           return;
         }
-        if (activeCallIdRef.current === sig.callId) return;
+        if (activeCallIdRef.current === sig.callId) {
+          lastNotifyRef.current = Date.now(); // caller is still ringing us
+          return;
+        }
 
         log("Incoming call from:", sig.fromName);
         activeCallIdRef.current = sig.callId;
         pendingIceRef.current = [];
         remoteDescSetRef.current = false;
+        lastNotifyRef.current = Date.now();
         set({ phase: "incoming", callId: sig.callId, peerUid: sig.from, peerName: sig.fromName, kind: sig.kind });
         startRinging("incoming");
+        acquireWakeLock();
+
+        // Caller vanished (closed tab / lost network) → stop ringing, log as missed
+        clearTimer(incomingWatchRef, "interval");
+        incomingWatchRef.current = window.setInterval(() => {
+          if (stateRef.current.phase !== "incoming") {
+            clearTimer(incomingWatchRef, "interval");
+            return;
+          }
+          if (Date.now() - lastNotifyRef.current > INCOMING_STALE_MS) {
+            log("Caller stopped ringing — dismissing incoming call");
+            resetState();
+          }
+        }, 3000);
+        return;
+      }
+
+      if (sig.type === "media") {
+        set({ remoteMuted: !!sig.muted, remoteCameraOff: !!sig.cameraOff });
         return;
       }
 
@@ -478,13 +605,10 @@ export function useWebRTC(myUid: string, myName: string) {
   );
 
   const hangup = useCallback(() => {
-    const { callId, peerUid, kind } = stateRef.current;
     log("Hanging up");
-    if (callId && peerUid) {
-      broadcastSignal({ type: "hangup", callId, from: myUid, fromName: myName, to: peerUid, kind });
-    }
-    resetState();
-  }, [myUid, myName]);
+    endCallAndNotify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMute = useCallback(() => {
     const stream = localStreamRef.current;
@@ -492,6 +616,8 @@ export function useWebRTC(myUid: string, myName: string) {
     const muted = !stateRef.current.muted;
     stream.getAudioTracks().forEach((t) => { t.enabled = !muted; });
     set({ muted });
+    sendMedia();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleCamera = useCallback(() => {
@@ -500,6 +626,48 @@ export function useWebRTC(myUid: string, myName: string) {
     const cameraOff = !stateRef.current.cameraOff;
     stream.getVideoTracks().forEach((t) => { t.enabled = !cameraOff; });
     set({ cameraOff });
+    sendMedia();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switch between front and back camera without dropping the call
+  const flipCamera = useCallback(async () => {
+    const stream = localStreamRef.current;
+    if (!stream || stateRef.current.kind !== "video") return;
+    const prevFacing = stateRef.current.facingMode;
+    const nextFacing: "user" | "environment" = prevFacing === "user" ? "environment" : "user";
+    const old = stream.getVideoTracks()[0];
+
+    const open = async (facing: "user" | "environment") => {
+      const s = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      return s.getVideoTracks()[0];
+    };
+
+    try {
+      // Release the current camera first — many phones can't open two at once
+      if (old) { old.stop(); stream.removeTrack(old); }
+      let track: MediaStreamTrack;
+      let facing = nextFacing;
+      try {
+        track = await open(nextFacing);
+      } catch (e) {
+        log("Flip failed, restoring previous camera:", e);
+        track = await open(prevFacing);
+        facing = prevFacing;
+      }
+      track.enabled = !stateRef.current.cameraOff;
+      const sender = pcRef.current?.getSenders().find((s) => s.track === null || s.track?.kind === "video");
+      await sender?.replaceTrack(track);
+      stream.addTrack(track);
+      set({ facingMode: facing, localStream: stream });
+      // Re-bind so <video> elements pick up the new track
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    } catch (e) {
+      log("flipCamera error:", e);
+    }
   }, []);
 
   const toggleSpeaker = useCallback(() => {
@@ -515,7 +683,13 @@ export function useWebRTC(myUid: string, myName: string) {
 
   useEffect(() => {
     log("useWebRTC initialized for:", myName);
+    // Wake locks are released when the tab is hidden — take it again on return
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && activeCallIdRef.current) acquireWakeLock();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       log("useWebRTC cleanup for:", myName);
       resetState();
     };
@@ -532,6 +706,7 @@ export function useWebRTC(myUid: string, myName: string) {
     toggleMute,
     toggleCamera,
     toggleSpeaker,
+    flipCamera,
     localVideoRef,
     remoteVideoRef,
     remoteAudioRef,
