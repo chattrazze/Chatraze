@@ -61,19 +61,16 @@ export default function BottomTabs({
                   </div>
                 ) : (
                   <Icon
-                    className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_6px_hsl(25_100%_50%/0.6)]" : ""}`}
+                    className="w-6 h-6"
                   />
                 )}
                 {showBadge && (
-                  <span className="absolute -top-1.5 -right-2 bg-secondary text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] px-0.5 flex items-center justify-center">
+                  <span className="absolute -top-2 -right-3 bg-secondary text-white text-[11px] font-bold rounded-full min-w-[20px] h-[20px] px-1 flex items-center justify-center">
                     {badgeCount > 99 ? "99+" : badgeCount}
                   </span>
                 )}
               </div>
-              <span className="text-[9px] md:text-[10px] font-medium leading-none">{label}</span>
-              {isActive && (
-                <span className="md:hidden absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-1 rounded-full bg-primary" />
-              )}
+              <span className={`text-[11px] leading-none ${isActive ? "font-semibold" : "font-medium"}`}>{label}</span>
             </button>
           );
         })}
